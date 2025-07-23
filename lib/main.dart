@@ -1,42 +1,57 @@
-/*import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // <-- Kullanıcı adı için
 import 'home_page.dart';
+import 'sohbet_gecmisi_sayfasi.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+Future<String> cihazIDAl() async {
+  DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  if (kIsWeb) {
+    return 'web_user_${DateTime.now().millisecondsSinceEpoch}';
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Flutter Chatbot',
-      theme: ThemeData(primarySwatch: Colors.blueGrey),
-      home: const HomePage(),
-    );
+  try {
+    final info = await deviceInfo.deviceInfo;
+    final data = info.data;
+    return data['id'] ??
+        data['identifierForVendor'] ??
+        data['deviceId'] ??
+        'unknown_device';
+  } catch (e) {
+    return 'device_id_error';
   }
 }
-*/
-import 'package:chatbot_app/home_page.dart';
-import 'package:flutter/material.dart';
-import 'ayarlar_sayfasi.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final cihazId = await cihazIDAl();
+  final prefs = await SharedPreferences.getInstance();
+  final kullaniciAdi =
+      prefs.getString('kullaniciAdi') ?? 'kullanici_${cihazId.substring(0, 5)}';
+
+  runApp(MyApp(deviceId: cihazId, kullaniciAdi: kullaniciAdi));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String deviceId;
+  final String kullaniciAdi;
+
+  const MyApp({required this.deviceId, required this.kullaniciAdi, Key? key})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Chatbot Uygulaması',
+      theme: ThemeData(primarySwatch: Colors.deepPurple),
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Chatbot',
-      theme: ThemeData.dark(), // siyah tema
-      home: const HomePage(), // giriş ekranı burası artık
+      home: HomePage(deviceId: deviceId, kullaniciAdi: kullaniciAdi),
+      routes: {
+        '/sohbetGecmisi': (context) => const SohbetGecmisiSayfasi(deviceId: ''),
+      },
     );
   }
 }

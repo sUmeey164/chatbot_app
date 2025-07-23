@@ -1,26 +1,78 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'dart:math';
 
-class ApiService {
-  static Future<String> mesajGonder(String mesaj) async {
-    final url = Uri.parse('http://192.168.1.15:3000/api/chat');
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:chatbot_app/home_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-    final headers = {"Content-Type": "application/json"};
+// Otomatik kullanıcı adı oluşturan fonksiyon
+String otomatikUsernameOlustur() {
+  const harfler = 'abcdefghijklmnopqrstuvwxyz';
+  Random rnd = Random();
+  String rastgeleHarfler = List.generate(
+    5,
+    (_) => harfler[rnd.nextInt(harfler.length)],
+  ).join();
+  int sayi = rnd.nextInt(9999);
+  return 'user_$rastgeleHarfler$sayi';
+}
 
-    final body = jsonEncode({"message": mesaj});
+class KullaniciYonlendirici extends StatefulWidget {
+  const KullaniciYonlendirici({super.key});
 
+  @override
+  State<KullaniciYonlendirici> createState() => _KullaniciYonlendiriciState();
+}
+
+class _KullaniciYonlendiriciState extends State<KullaniciYonlendirici> {
+  @override
+  void initState() {
+    super.initState();
+    kullaniciBilgileriniHazirla();
+  }
+
+  Future<void> kullaniciBilgileriniHazirla() async {
     try {
-      final response = await http.post(url, headers: headers, body: body);
+      final prefs = await SharedPreferences.getInstance();
+      final deviceInfo = DeviceInfoPlugin();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['cevap'] ?? 'Yanıt alınamadı';
+      String deviceId = 'bilinmeyen_cihaz';
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+        deviceId = androidInfo.id?.toString() ?? 'android_default_id';
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        deviceId = iosInfo.identifierForVendor ?? 'ios_default_id';
       } else {
-        throw Exception('Sunucu hatası: ${response.statusCode}');
+        deviceId = Platform.localHostname;
       }
+
+      String? username = prefs.getString('username');
+
+      if (username == null) {
+        username = otomatikUsernameOlustur();
+        await prefs.setString('username', username);
+      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(
+            deviceId: deviceId,
+            kullaniciAdi: username, // 👈 BU SATIRI DÜZENLEDİK
+          ),
+        ),
+      );
     } catch (e) {
-      print("Hata oluştu: $e");
-      throw Exception('Sunucuya bağlanılamadı.');
+      print("Kullanıcı bilgileri hazırlanırken hata: $e");
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(child: CircularProgressIndicator(color: Colors.deepPurple)),
+    );
   }
 }

@@ -1,26 +1,31 @@
+import 'package:chatbot_app/sohbet_oturumlari_sayfasi.dart';
 import 'package:flutter/material.dart';
-
-class ApiService {
-  static Future<String> mesajGonder(String mesaj) async {
-    await Future.delayed(const Duration(seconds: 1)); // Simülasyon
-    return "Bot cevabı: $mesaj";
-  }
-}
-
-class Mesaj {
-  final String metin;
-  final bool kullanici;
-  Mesaj({required this.metin, required this.kullanici});
-}
+import 'SohbetOturumu.dart';
+import 'history_manager.dart';
+import 'mesaj.dart';
 
 class SohbetEkrani extends StatefulWidget {
+  final SohbetOturumu session;
+
+  const SohbetEkrani({
+    Key? key,
+    required this.session,
+    required SohbetOturumu oturum,
+  }) : super(key: key);
+
   @override
   _SohbetEkraniState createState() => _SohbetEkraniState();
 }
 
 class _SohbetEkraniState extends State<SohbetEkrani> {
+  late List<Mesaj> _mesajlar;
   final TextEditingController _mesajController = TextEditingController();
-  final List<Mesaj> _mesajlar = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _mesajlar = List.from(widget.session.mesajlar);
+  }
 
   void _mesajGonder() async {
     final metin = _mesajController.text.trim();
@@ -31,42 +36,28 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
     });
     _mesajController.clear();
 
-    try {
-      final botCevabi = await ApiService.mesajGonder(metin);
-      setState(() {
-        _mesajlar.add(Mesaj(metin: botCevabi, kullanici: false));
-      });
-    } catch (e) {
-      print('Hata oluştu: $e');
-      setState(() {
-        _mesajlar.add(
-          Mesaj(metin: 'Sunucuya bağlanılamadı.', kullanici: false),
-        );
-      });
-    }
-  }
+    // Simüle edilmiş bot cevabı
+    final botCevabi = "Bot cevabı: $metin";
 
-  void _dosyaEkle() {
-    print("DOSYA EKLE BUTONUNA BASILDI ✅");
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Dosya Ekle'),
-        content: const Text('Dosya ekleme fonksiyonu yakında eklenecek.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Kapat'),
-          ),
-        ],
-      ),
+    setState(() {
+      _mesajlar.add(Mesaj(metin: botCevabi, kullanici: false));
+    });
+
+    // Oturumdaki mesajları güncelle ve kaydet
+    final updatedSession = SohbetOturumu(
+      id: widget.session.id,
+      baslik: widget.session.baslik,
+      mesajlar: _mesajlar,
+      deviceId: '',
     );
+
+    await HistoryManager.updateSession(updatedSession);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("ChatBot")),
+      appBar: AppBar(title: Text(widget.session.baslik)),
       body: Column(
         children: [
           Expanded(
@@ -101,30 +92,18 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
             child: Row(
               children: [
                 Expanded(
-                  child: Stack(
-                    alignment: Alignment.centerRight,
-                    children: [
-                      TextField(
-                        controller: _mesajController,
-                        decoration: const InputDecoration(
-                          hintText: 'Mesaj yaz...',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 48,
-                            vertical: 16,
-                          ),
-                        ),
-                        onSubmitted: (_) => _mesajGonder(),
+                  child: TextField(
+                    controller: _mesajController,
+
+                    decoration: const InputDecoration(
+                      hintText: 'Mesaj yaz...',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                      Positioned(
-                        right: 8,
-                        child: IconButton(
-                          icon: const Icon(Icons.attach_file),
-                          color: Colors.grey,
-                          onPressed: _dosyaEkle,
-                        ),
-                      ),
-                    ],
+                    ),
+                    onSubmitted: (value) => _mesajGonder(),
                   ),
                 ),
                 const SizedBox(width: 8),
