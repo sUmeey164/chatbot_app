@@ -1,10 +1,15 @@
+// lib/sohbet_gecmisi_sayfasi.dart
 import 'package:flutter/material.dart';
-import 'history_manager.dart';
-import 'mesaj.dart';
+import 'package:chatbot_app/history_manager.dart';
+import 'package:chatbot_app/mesaj.dart';
+import 'package:chatbot_app/SohbetOturumu.dart';
+import 'dart:io'; // File sınıfı için
 
 class SohbetGecmisiSayfasi extends StatefulWidget {
   final String deviceId;
-  const SohbetGecmisiSayfasi({Key? key, required this.deviceId})
+  final String? sessionId;
+
+  const SohbetGecmisiSayfasi({Key? key, required this.deviceId, this.sessionId})
     : super(key: key);
 
   @override
@@ -12,36 +17,49 @@ class SohbetGecmisiSayfasi extends StatefulWidget {
 }
 
 class _SohbetGecmisiSayfasiState extends State<SohbetGecmisiSayfasi> {
-  List<Mesaj> gecmisMesajlar = [];
+  SohbetOturumu? _currentSession;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _gecmisiYukle();
+    _loadChatHistory();
   }
 
-  Future<void> _gecmisiYukle() async {
-    final session = await HistoryManager.getOturumByDeviceId(widget.deviceId);
-    if (session != null) {
-      setState(() {
-        gecmisMesajlar = session.mesajlar;
-      });
-    } else {
-      setState(() {
-        gecmisMesajlar = [];
-      });
-    }
-  }
-
-  Future<void> _gecmisiTemizle() async {
-    // Tek cihaz için oturumu tamamen silmek ve mesaj listesini boşaltmak
-    final session = await HistoryManager.getOturumByDeviceId(widget.deviceId);
-    if (session != null) {
-      await HistoryManager.deleteSession(session.id);
-    }
+  Future<void> _loadChatHistory() async {
     setState(() {
-      gecmisMesajlar = [];
+      _isLoading = true;
     });
+
+    if (widget.sessionId != null) {
+      _currentSession = await HistoryManager.getOturumById(widget.sessionId!);
+    } else {
+      _currentSession = await HistoryManager.getOturumByDeviceId(
+        widget.deviceId,
+      );
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Color getMesajRengi(Mesaj mesaj) {
+    if (mesaj.kullanici) {
+      return Colors.grey.shade800;
+    }
+    final model = mesaj.model ?? 'Chatbot';
+    switch (model) {
+      case 'Gemini':
+        return Colors.blue;
+      case 'ChatGPT':
+        return Colors.pink;
+      case 'DeepSeek':
+        return Colors.amber;
+      case 'Chatbot':
+      default:
+        return Colors.deepPurple;
+    }
   }
 
   @override
@@ -49,51 +67,32 @@ class _SohbetGecmisiSayfasiState extends State<SohbetGecmisiSayfasi> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
-        title: const Text('Sohbet Geçmişi'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Geçmişi Temizle'),
-                  content: const Text(
-                    'Sohbet geçmişini silmek istediğinize emin misiniz?',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('İptal'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Sil'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirm == true) {
-                await _gecmisiTemizle();
-              }
-            },
-            tooltip: 'Geçmişi Temizle',
-          ),
-        ],
+        backgroundColor: Colors.grey[900],
+        title: Text(
+          _currentSession?.baslik.isNotEmpty == true
+              ? _currentSession!.baslik
+              : 'Sohbet Geçmişi',
+          style: const TextStyle(color: Colors.white),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: gecmisMesajlar.isEmpty
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.deepPurple),
+            )
+          : _currentSession == null || _currentSession!.mesajlar.isEmpty
           ? const Center(
               child: Text(
-                'Geçmiş mesaj bulunamadı.',
+                'Bu oturumda mesaj bulunmamaktadır.',
                 style: TextStyle(color: Colors.white70, fontSize: 16),
+                textAlign: TextAlign.center,
               ),
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: gecmisMesajlar.length,
+              itemCount: _currentSession!.mesajlar.length,
               itemBuilder: (context, index) {
-                final mesaj = gecmisMesajlar[index];
+                final mesaj = _currentSession!.mesajlar[index];
                 return Align(
                   alignment: mesaj.kullanici
                       ? Alignment.centerRight
@@ -103,31 +102,62 @@ class _SohbetGecmisiSayfasiState extends State<SohbetGecmisiSayfasi> {
                     padding: const EdgeInsets.all(12),
                     constraints: const BoxConstraints(maxWidth: 280),
                     decoration: BoxDecoration(
-                      color: mesaj.kullanici
-                          ? Colors.grey.shade800
-                          : Colors.deepPurple,
+                      color: getMesajRengi(mesaj),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          mesaj.metin,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
-                        ),
-                        if (mesaj.model != null)
+                        if (mesaj.filePath != null && mesaj.fileType == 'image')
                           Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Text(
-                              'Model: ${mesaj.model}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Image.file(
+                                File(mesaj.filePath!),
+                                width: 200,
+                                height: 200,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Text(
+                                      'Görsel yüklenemedi.',
+                                      style: TextStyle(color: Colors.white),
+                                    ), // Sadece bir tane color kullanın
                               ),
                             ),
+                          ),
+                        if (mesaj.filePath != null && mesaj.fileType == 'file')
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.insert_drive_file,
+                                  color: Colors.white70,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    mesaj.metin.contains('[Dosya:') &&
+                                            mesaj.metin.contains(']')
+                                        ? mesaj.metin.substring(
+                                            mesaj.metin.indexOf('[Dosya:') + 8,
+                                            mesaj.metin.indexOf(']'),
+                                          )
+                                        : mesaj.metin,
+                                    style: const TextStyle(color: Colors.white),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (mesaj.metin.isNotEmpty)
+                          Text(
+                            mesaj.metin,
+                            style: const TextStyle(color: Colors.white),
                           ),
                       ],
                     ),

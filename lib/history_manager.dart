@@ -1,98 +1,112 @@
+// lib/history_manager.dart
 import 'dart:convert';
-import 'package:chatbot_app/mesaj.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'SohbetOturumu.dart';
+import 'package:chatbot_app/SohbetOturumu.dart';
+import 'package:chatbot_app/mesaj.dart'; // Mesaj sınıfını da import et
 
 class HistoryManager {
-  static const String _keyPrefix = 'oturum_';
+  static const String _sessionKeyPrefix = 'chat_session_';
+  static const String _allSessionIdsKey = 'all_chat_session_ids';
 
-  static Future<void> saveSession(SohbetOturumu session) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = '$_keyPrefix${session.id}';
-    final jsonData = jsonEncode(session.toJson());
-    await prefs.setString(key, jsonData);
-  }
-
-  static Future<SohbetOturumu?> getSession(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = '$_keyPrefix$id';
-    final jsonString = prefs.getString(key);
-    if (jsonString == null) return null;
-    return SohbetOturumu.fromJson(jsonDecode(jsonString));
-  }
-
-  static Future<void> deleteSession(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = '$_keyPrefix$id';
-    await prefs.remove(key);
-  }
-
+  // Tüm oturumları döndüren metot
   static Future<List<SohbetOturumu>> getAllSessions() async {
     final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where((key) => key.startsWith(_keyPrefix));
+    final allSessionIds = prefs.getStringList(_allSessionIdsKey) ?? [];
     List<SohbetOturumu> sessions = [];
 
-    for (var key in keys) {
-      final jsonString = prefs.getString(key);
+    for (String id in allSessionIds) {
+      final jsonString = prefs.getString('$_sessionKeyPrefix$id');
       if (jsonString != null) {
-        try {
-          sessions.add(SohbetOturumu.fromJson(jsonDecode(jsonString)));
-        } catch (e) {
-          // Hata varsa görmezden gel
-          print('Hata: $e');
-        }
+        sessions.add(SohbetOturumu.fromJson(jsonDecode(jsonString)));
       }
     }
+    // Opsiyonel: Oturumları en yeniye göre sırala
+    sessions.sort((a, b) => b.id.compareTo(a.id));
     return sessions;
   }
 
-  static Future<void> updateSession(SohbetOturumu updatedSession) async {
-    await saveSession(updatedSession);
-  }
-
-  static Future<void> clearHistory() async {
+  // Belirli bir oturumu ID'ye göre döndüren metot
+  static Future<SohbetOturumu?> getOturumById(String id) async {
     final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where((key) => key.startsWith(_keyPrefix));
-    for (var key in keys) {
-      await prefs.remove(key);
+    final jsonString = prefs.getString('$_sessionKeyPrefix$id');
+    if (jsonString != null) {
+      return SohbetOturumu.fromJson(jsonDecode(jsonString));
     }
+    return null;
   }
 
-  static Future<void> addMessage(Mesaj mesaj, String sessionId) async {
-    final session = await getSession(sessionId);
-    if (session != null) {
-      final updatedMessages = List<Mesaj>.from(session.mesajlar);
-      updatedMessages.add(mesaj);
-
-      final updatedSession = SohbetOturumu(
-        id: session.id,
-        baslik: session.baslik,
-        mesajlar: updatedMessages,
-        deviceId: session.deviceId,
-      );
-
-      await saveSession(updatedSession);
-    } else {
-      print("Session bulunamadı: $sessionId");
-    }
-  }
-
+  // Cihaz ID'sine göre en son oturumu döndüren metot
   static Future<SohbetOturumu?> getOturumByDeviceId(String deviceId) async {
-    final sessions = await getAllSessions();
-    try {
-      return sessions.firstWhere((session) => session.deviceId == deviceId);
-    } catch (e) {
-      return null;
+    final prefs = await SharedPreferences.getInstance();
+    final allSessionIds = prefs.getStringList(_allSessionIdsKey) ?? [];
+    SohbetOturumu? latestSession;
+
+    for (String id in allSessionIds) {
+      final jsonString = prefs.getString('$_sessionKeyPrefix$id');
+      if (jsonString != null) {
+        final session = SohbetOturumu.fromJson(jsonDecode(jsonString));
+        if (session.deviceId == deviceId) {
+          // En yeni oturumu bulmak için ID'leri karşılaştır (ID'ler genellikle timestamp'tir)
+          if (latestSession == null ||
+              int.parse(session.id) > int.parse(latestSession.id)) {
+            latestSession = session;
+          }
+        }
+      }
+    }
+    return latestSession;
+  }
+
+  // Oturumu kaydet veya güncelle
+  static Future<void> saveSession(SohbetOturumu session) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = jsonEncode(session.toJson());
+    await prefs.setString('$_sessionKeyPrefix${session.id}', jsonString);
+
+    // Oturum ID'sini tüm oturumların listesine ekle (eğer yoksa)
+    final allSessionIds = prefs.getStringList(_allSessionIdsKey) ?? [];
+    if (!allSessionIds.contains(session.id)) {
+      allSessionIds.add(session.id);
+      await prefs.setStringList(_allSessionIdsKey, allSessionIds);
     }
   }
 
-  // Buraya eklediğimiz getHistory metodu:
-  static Future<List<Mesaj>> getHistory() async {
-    final sessions = await getAllSessions();
-    List<Mesaj> tumMesajlar = [];
-    for (var session in sessions) {
-      tumMesajlar.addAll(session.mesajlar);
+  // Oturumu güncelle (Başlık gibi alanlar değiştiğinde kullanılabilir)
+  static Future<void> updateSession(SohbetOturumu session) async {
+    // saveSession zaten bir oturum varsa güncelleyecektir,
+    // o yüzden ayrı bir updateSession metoduna gerek kalmayabilir.
+    // Ancak daha açıklayıcı olması için bırakılabilir.
+    await saveSession(session);
+  }
+
+  // Mesaj ekle ve oturumu kaydet
+  static Future<void> addMessage(Mesaj mesaj, String sessionId) async {
+    SohbetOturumu? session = await getOturumById(sessionId);
+    if (session != null) {
+      session.mesajlar.add(mesaj);
+      await saveSession(session);
     }
-    return tumMesajlar;
+  }
+
+  // Oturumu sil
+  static Future<void> deleteSession(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('$_sessionKeyPrefix$id');
+
+    // Oturum ID'sini tüm oturumların listesinden çıkar
+    final allSessionIds = prefs.getStringList(_allSessionIdsKey) ?? [];
+    allSessionIds.remove(id);
+    await prefs.setStringList(_allSessionIdsKey, allSessionIds);
+  }
+
+  // Tüm sohbet geçmişini temizle (Tüm oturumları siler)
+  static Future<void> clearAllSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final allSessionIds = prefs.getStringList(_allSessionIdsKey) ?? [];
+
+    for (String id in allSessionIds) {
+      await prefs.remove('$_sessionKeyPrefix$id');
+    }
+    await prefs.remove(_allSessionIdsKey);
   }
 }
