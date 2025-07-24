@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io';
+import 'dart:io'; // Platform.isAndroid, Platform.isIOS, File için gerekli
 
 // Your custom classes should be imported using package:your_app_name/path_to_file.dart
 import 'package:chatbot_app/API/api_service.dart';
@@ -29,25 +29,21 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // YENİ EKLENDİ: Oturum ve kullanıcı yönetimi için değişkenler
   SohbetOturumu? _currentSession;
   late String _deviceId;
   late String _username;
   bool _isLoading = true;
 
-  // Mevcut değişkenleriniz
   final List<Mesaj> _messages = [];
   final TextEditingController _mesajController = TextEditingController();
   String _selectedModel = 'Chatbot';
   bool _chatStarted = false;
 
-  // YENİ/GÜNCELLENEN Değişkenler:
   String? _selectedFilePath;
   String? _selectedFileName;
   String? _selectedFileType; // 'image', 'file', null
-  bool _showCloseButton = false; // YENİ: Kapatma butonu görünürlüğü için durum
+  bool _showCloseButton = false; // Kapatma butonu görünürlüğü için durum
 
-  // _initializeChat'in sadece bir kez çalışmasını sağlamak için bayrak
   bool _isChatInitialized = false;
 
   @override
@@ -225,14 +221,10 @@ class _HomePageState extends State<HomePage> {
     String? gonderilecekFilePath = _selectedFilePath;
     String? gonderilecekFileType = _selectedFileType;
 
-    // Eğer görsel seçildi ama metin boşsa, metni boş bırak
-    // Eğer dosya seçildi ve metin boşsa, metni "[Dosya: dosya_adı]" şeklinde yap
     if (gonderilecekFilePath != null) {
       if (gonderilecekFileType == 'file' && gonderilecekMetin.isEmpty) {
         gonderilecekMetin = '[Dosya: ${_selectedFileName ?? 'Seçili Dosya'}]';
       }
-      // Görsel ise, metin kısmı kullanıcının yazdığı kadar kalır, eğer boşsa boş kalır.
-      // Görsel direkt olarak Image.file ile gösterilecek.
     }
 
     final userMessage = Mesaj(
@@ -256,13 +248,11 @@ class _HomePageState extends State<HomePage> {
     if (_currentSession != null &&
         _currentSession!.baslik.isEmpty &&
         userMessage.metin.isNotEmpty) {
-      // Başlık için kullanıcının metni yeterli
       _currentSession!.baslik = BaslikOlusturucu.olustur(userMessage.metin);
       await HistoryManager.updateSession(_currentSession!);
     } else if (_currentSession != null &&
         _currentSession!.baslik.isEmpty &&
         userMessage.filePath != null) {
-      // Eğer sadece dosya/resim gönderildiyse ve başlık yoksa, basit bir başlık oluştur
       _currentSession!.baslik = userMessage.fileType == 'image'
           ? 'Resimli Sohbet'
           : 'Dosyalı Sohbet';
@@ -272,8 +262,6 @@ class _HomePageState extends State<HomePage> {
     await HistoryManager.addMessage(userMessage, _currentSession!.id);
 
     try {
-      // API Servisi görsel veya dosya göndermeyi desteklemiyorsa, burada hata alabilirsiniz.
-      // API entegrasyonu için ek çalışma gerekebilir.
       final cevap = await ApiService.mesajGonder(
         gonderilecekMetin,
         model: _selectedModel,
@@ -320,9 +308,6 @@ class _HomePageState extends State<HomePage> {
         _selectedFileName = foto.name;
         _selectedFileType = 'image';
       });
-      // Bottom sheet'i kapatmak için Navigator.pop
-      // _dosyaSecimDialog metodu içinde zaten çağrılıyor, burada tekrar çağırmaya gerek yok.
-      // Eğer ayrı ayrı çağırıyorsanız, bu satırı eklemelisiniz: Navigator.pop(context);
     }
   }
 
@@ -334,7 +319,6 @@ class _HomePageState extends State<HomePage> {
         _selectedFileName = foto.name;
         _selectedFileType = 'image';
       });
-      // Navigator.pop(context);
     }
   }
 
@@ -349,14 +333,13 @@ class _HomePageState extends State<HomePage> {
         _selectedFileName = dosyaAdi;
         _selectedFileType = 'file';
       });
-      // Navigator.pop(context);
     }
   }
 
   void _dosyaSecimDialog() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey, // Bu rengi de dinamik yapabilirsiniz
+      backgroundColor: Colors.grey,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
       ),
@@ -370,21 +353,15 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildActionColumn(Icons.image, 'Galeri', () {
-                    Navigator.pop(
-                      context,
-                    ); // Seçim sonrası bottom sheet'i kapat
+                    Navigator.pop(context);
                     galeridenSec();
                   }),
                   _buildActionColumn(Icons.camera_alt, 'Kamera', () {
-                    Navigator.pop(
-                      context,
-                    ); // Seçim sonrası bottom sheet'i kapat
+                    Navigator.pop(context);
                     kameraIleCek();
                   }),
                   _buildActionColumn(Icons.insert_drive_file, 'Dosya', () {
-                    Navigator.pop(
-                      context,
-                    ); // Seçim sonrası bottom sheet'i kapat
+                    Navigator.pop(context);
                     dosyaSec();
                   }),
                 ],
@@ -431,9 +408,74 @@ class _HomePageState extends State<HomePage> {
     return ActionChip(
       label: Text(yazi),
       backgroundColor: mesajRengi().withOpacity(0.7),
-      labelStyle: const TextStyle(color: Colors.white),
+      labelStyle: const TextStyle(
+        color: Colors.white,
+        fontSize: 14, // Yazı boyutunu belirginleştirdim
+        height:
+            0.9, // Bu değeri (örn: 0.8, 0.9, 1.0) deneyerek yazıyı dikeyde ortalamaya çalışın
+        leadingDistribution: TextLeadingDistribution
+            .even, // Satır boşluğunu üste ve alta eşit dağıt
+      ),
       onPressed: () => mesajGonderVeGetir(yazi),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12.0,
+        vertical: 8.0,
+      ), // ActionChip'in genel padding'ini de biraz ayarladım
     );
+  }
+
+  // YENİ: Görsel oluşturma metodu
+  void _generateImageFromPrompt(String prompt) async {
+    if (prompt.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Görsel oluşturmak için bir açıklama girin.'),
+        ),
+      );
+      return;
+    }
+
+    final userImageRequest = Mesaj(
+      kullanici: true,
+      metin: 'Görsel oluştur: "$prompt"',
+      model: _selectedModel,
+    );
+    setState(() {
+      _messages.add(userImageRequest);
+      _mesajController.clear();
+      _showCloseButton =
+          false; // Görsel oluşturma isteği gönderildiğinde X butonunu gizle
+    });
+    await HistoryManager.addMessage(userImageRequest, _currentSession!.id);
+
+    try {
+      final imageUrl = await ApiService.generateImage(
+        prompt,
+        deviceId: _deviceId,
+      );
+
+      final botImageMessage = Mesaj(
+        kullanici: false,
+        metin: 'İşte oluşturduğum görsel:',
+        model: _selectedModel,
+        imageUrl: imageUrl, // Oluşturulan görselin URL'sini buraya ata
+      );
+
+      setState(() {
+        _messages.add(botImageMessage);
+      });
+      await HistoryManager.addMessage(botImageMessage, _currentSession!.id);
+    } catch (e) {
+      final errorMessage = Mesaj(
+        metin: 'Görsel oluşturulamadı: $e',
+        kullanici: false,
+        model: _selectedModel,
+      );
+      setState(() {
+        _messages.add(errorMessage);
+      });
+      await HistoryManager.addMessage(errorMessage, _currentSession!.id);
+    }
   }
 
   @override
@@ -542,7 +584,7 @@ class _HomePageState extends State<HomePage> {
             },
             tooltip: 'Sohbet Oturumları',
           ),
-          /*
+          /* YORUM SATIRI YAPILDI: Sohbet Geçmişi butonu kaldırıldı.
           IconButton(
             icon: const Icon(Icons.history, color: Colors.white),
             onPressed: () {
@@ -589,7 +631,30 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Eğer resim varsa, önizlemesini göster
+                                // YENİ: Eğer oluşturulan görselin URL'si varsa göster
+                                if (mesaj.imageUrl != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      child: Image.network(
+                                        // Image.network widget'ını kullanıyoruz
+                                        mesaj.imageUrl!,
+                                        width: 200, // Görsel boyutu
+                                        height: 200, // Görsel boyutu
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                const Text(
+                                                  'Görsel yüklenemedi.',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                      ),
+                                    ),
+                                  ),
+                                // Eğer kullanıcının gönderdiği bir görsel yolu varsa
                                 if (mesaj.filePath != null &&
                                     mesaj.fileType == 'image')
                                   Padding(
@@ -647,7 +712,6 @@ class _HomePageState extends State<HomePage> {
                                       ],
                                     ),
                                   ),
-                                // Eğer mesaj metni varsa göster (görsel veya dosya olsa bile)
                                 if (mesaj.metin.isNotEmpty)
                                   Text(
                                     mesaj.metin,
@@ -708,14 +772,14 @@ class _HomePageState extends State<HomePage> {
                                 });
                               },
                               child: Stack(
-                                clipBehavior: Clip
-                                    .none, // Allows button to slightly overflow for visual effect
+                                clipBehavior:
+                                    Clip.none, // Butonun taşmasına izin verir
                                 children: [
                                   // Önizleme içeriği (görsel veya dosya ikonu)
                                   if (_selectedFileType == 'image')
                                     Container(
-                                      width: 80, // Increased size
-                                      height: 80, // Increased size
+                                      width: 80, // Boyutu büyütüldü
+                                      height: 80, // Boyutu büyütüldü
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
                                         image: DecorationImage(
@@ -765,14 +829,14 @@ class _HomePageState extends State<HomePage> {
                                   // Kapatma butonu (sadece _showCloseButton true ise görünür)
                                   if (_showCloseButton)
                                     Positioned(
-                                      top: 5, // Positioned within the thumbnail
+                                      top: 5, // Önizleme içinde konumlandırıldı
                                       right:
-                                          5, // Positioned within the thumbnail
+                                          5, // Önizleme içinde konumlandırıldı
                                       child: Container(
                                         decoration: BoxDecoration(
                                           color: Colors.black.withOpacity(
                                             0.6,
-                                          ), // Dark translucent background for circle
+                                          ), // Saydam siyah daire arkaplan
                                           shape: BoxShape.circle,
                                         ),
                                         child: IconButton(
@@ -780,7 +844,7 @@ class _HomePageState extends State<HomePage> {
                                             Icons.close,
                                             color: Colors.white,
                                             size: 18,
-                                          ), // Smaller icon
+                                          ), // Daha küçük ikon
                                           onPressed: () {
                                             setState(() {
                                               _selectedFilePath = null;
@@ -791,13 +855,13 @@ class _HomePageState extends State<HomePage> {
                                             });
                                           },
                                           visualDensity: VisualDensity
-                                              .compact, // Make button smaller
+                                              .compact, // Butonu daha kompakt yapar
                                           padding: EdgeInsets
-                                              .zero, // Remove extra padding
+                                              .zero, // Fazla padding'i kaldırır
                                           constraints: const BoxConstraints(
                                             minWidth: 28,
                                             minHeight: 28,
-                                          ), // Define compact size
+                                          ), // Boyut kısıtlaması
                                         ),
                                       ),
                                     ),
@@ -808,7 +872,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-                  // Mesaj giriş alanı: Bu tek kopya kalacak.
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Row(
@@ -832,12 +895,29 @@ class _HomePageState extends State<HomePage> {
                                 horizontal: 16,
                                 vertical: 12,
                               ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  Icons.attach_file,
-                                  color: mesajRengi(),
-                                ),
-                                onPressed: _dosyaSecimDialog,
+                              suffixIcon: Row(
+                                // İkonları yan yana göstermek için Row kullanıldı
+                                mainAxisSize: MainAxisSize
+                                    .min, // Row'u içeriği kadar daralt
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.auto_awesome_outlined,
+                                      color: mesajRengi(),
+                                    ),
+                                    onPressed: () => _generateImageFromPrompt(
+                                      _mesajController.text,
+                                    ),
+                                    tooltip: 'Görsel Oluştur',
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.attach_file,
+                                      color: mesajRengi(),
+                                    ),
+                                    onPressed: _dosyaSecimDialog,
+                                  ),
+                                ],
                               ),
                             ),
                             onSubmitted: mesajGonderVeGetir,

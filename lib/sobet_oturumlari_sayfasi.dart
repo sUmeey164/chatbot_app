@@ -55,7 +55,7 @@ class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
       appBar: AppBar(
         backgroundColor: Colors.grey[900],
         title: const Text(
-          'Tüm Sohbet Oturumları',
+          'Sohbet Oturumları',
           style: TextStyle(color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.white),

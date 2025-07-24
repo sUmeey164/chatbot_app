@@ -15,10 +15,9 @@ class Mesaj {
     required this.model,
     this.filePath,
     this.fileType,
-    this.imageUrl, // YENİ: Buraya da ekleyin
+    this.imageUrl, // YENİ: Constructor'a ekleyin
   });
 
-  // Factory metodu veya fromJson metodu varsa onu da imageUrl ile güncelleyin
   factory Mesaj.fromJson(Map<String, dynamic> json) {
     return Mesaj(
       kullanici: json['kullanici'] as bool,
@@ -26,7 +25,7 @@ class Mesaj {
       model: json['model'] as String,
       filePath: json['filePath'] as String?,
       fileType: json['fileType'] as String?,
-      imageUrl: json['imageUrl'] as String?, // YENİ: Burada da ekleyin
+      imageUrl: json['imageUrl'] as String?, // YENİ: fromJson metoduna ekleyin
     );
   }
 
@@ -37,7 +36,7 @@ class Mesaj {
       'model': model,
       'filePath': filePath,
       'fileType': fileType,
-      'imageUrl': imageUrl, // YENİ: Burada da ekleyin
+      'imageUrl': imageUrl, // YENİ: toJson metoduna ekleyin
     };
   }
 }

@@ -115,7 +115,7 @@ class _SohbetGecmisiSayfasiState extends State<SohbetGecmisiSayfasi> {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
                               child: Image.network(
-                                // Image.network widget'ını kullanıyoruz
+                                // Image.network kullanıldı
                                 mesaj.imageUrl!,
                                 width: 200, // Görsel boyutu
                                 height: 200, // Görsel boyutu

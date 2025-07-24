@@ -27,12 +27,11 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
     _mesajlar = List.from(widget.session.mesajlar);
   }
 
-  // Mesaj renklerini belirlemek için basit bir fonksiyon (İsteğe bağlı: home_page.dart'tan daha gelişmişini kopyalayabilirsiniz)
+  // Mesaj renklerini belirlemek için basit bir fonksiyon
   Color _getMesajRengi(Mesaj mesaj) {
     if (mesaj.kullanici) {
       return Colors.blue[200]!;
     }
-    // Bot mesajları için session modeline göre renk verilebilir veya sabit bir renk
     switch (mesaj.model) {
       case 'Gemini':
         return Colors.blue.shade100;
@@ -46,21 +45,19 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
     }
   }
 
-  // lib/sohbet_ekrani.dart dosyasındaki _mesajGonder metodunun güncellenmiş hali
   void _mesajGonder() async {
     final metin = _mesajController.text.trim();
     if (metin.isEmpty) return;
 
-    // Kullanıcı mesajı için session'ın modelini kullan, null ise 'Chatbot' varsayılanını ata
-    final userModel = widget.session.model ?? 'Chatbot'; // Hata düzeltildi
+    final userModel =
+        widget.session.model ?? 'Chatbot'; // Null kontrolü yapıldı
 
     setState(() {
       _mesajlar.add(Mesaj(metin: metin, kullanici: true, model: userModel));
     });
     _mesajController.clear();
 
-    // Simüle edilmiş bot cevabı (Burada gerçek API çağrısı yapılmıyor, sadece örnek)
-    final botCevabi = "Bot cevabı: $metin";
+    final botCevabi = "Bot cevabı: $metin"; // Simüle edilmiş bot cevabı
 
     setState(() {
       _mesajlar.add(
@@ -68,13 +65,12 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
       );
     });
 
-    // Oturumdaki mesajları güncelle ve kaydet
     final updatedSession = SohbetOturumu(
       id: widget.session.id,
       baslik: widget.session.baslik,
       mesajlar: _mesajlar,
-      deviceId: widget.session.deviceId,
-      model: widget.session.model, // Bu kısım doğruydı
+      deviceId: widget.session.deviceId, // Doğru deviceId kullanımı
+      model: widget.session.model, // Doğru model kullanımı
     );
 
     await HistoryManager.updateSession(updatedSession);
@@ -83,19 +79,14 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          Colors.black, // Arkaplan rengini sabit tuttum, isteğe bağlı
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text(
           widget.session.baslik,
-          style: const TextStyle(
-            color: Colors.white,
-          ), // Metin rengini ayarladım
+          style: const TextStyle(color: Colors.white),
         ),
-        backgroundColor: Colors.grey[900], // AppBar rengini ayarladım
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ), // Geri butonu rengi
+        backgroundColor: Colors.grey[900],
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [
@@ -115,13 +106,9 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                       horizontal: 8,
                     ),
                     padding: const EdgeInsets.all(12),
-                    constraints: const BoxConstraints(
-                      maxWidth: 280,
-                    ), // Maksimum genişlik eklendi
+                    constraints: const BoxConstraints(maxWidth: 280),
                     decoration: BoxDecoration(
-                      color: _getMesajRengi(
-                        mesaj,
-                      ), // Renk fonksiyonu kullanıldı
+                      color: _getMesajRengi(mesaj),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -134,16 +121,15 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
                               child: Image.network(
-                                // Image.network kullanıldı
                                 mesaj.imageUrl!,
-                                width: 200, // Görsel boyutu
-                                height: 200, // Görsel boyutu
+                                width: 200,
+                                height: 200,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
                                     const Text(
                                       'Görsel yüklenemedi.',
                                       style: TextStyle(color: Colors.black),
-                                    ), // Metin rengi uygun hale getirildi
+                                    ),
                               ),
                             ),
                           ),
@@ -161,9 +147,7 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                                 errorBuilder: (context, error, stackTrace) =>
                                     const Text(
                                       'Görsel yüklenemedi.',
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                      ), // Metin rengi uygun hale getirildi
+                                      style: TextStyle(color: Colors.black),
                                     ),
                               ),
                             ),
@@ -177,8 +161,7 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                               children: [
                                 const Icon(
                                   Icons.insert_drive_file,
-                                  color: Colors
-                                      .black54, // İkon rengi uygun hale getirildi
+                                  color: Colors.black54,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
@@ -191,9 +174,7 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                                             mesaj.metin.indexOf(']'),
                                           )
                                         : mesaj.metin,
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                    ), // Metin rengi uygun hale getirildi
+                                    style: const TextStyle(color: Colors.black),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -204,7 +185,7 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                           Text(
                             mesaj.metin,
                             style: const TextStyle(color: Colors.black),
-                          ), // Metin rengi uygun hale getirildi
+                          ),
                       ],
                     ),
                   ),
@@ -219,12 +200,12 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                 Expanded(
                   child: TextField(
                     controller: _mesajController,
-                    style: const TextStyle(color: Colors.white), // Metin rengi
+                    style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Mesaj yaz...',
-                      hintStyle: TextStyle(color: Colors.white70), // Hint rengi
+                      hintStyle: TextStyle(color: Colors.white70),
                       filled: true,
-                      fillColor: Colors.grey[800], // Arkaplan rengi
+                      fillColor: Colors.grey[800],
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
                         borderSide: BorderSide.none,
@@ -239,10 +220,7 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(
-                    Icons.send,
-                    color: Colors.deepPurpleAccent,
-                  ), // İkon rengi
+                  icon: const Icon(Icons.send, color: Colors.deepPurpleAccent),
                   onPressed: _mesajGonder,
                 ),
               ],

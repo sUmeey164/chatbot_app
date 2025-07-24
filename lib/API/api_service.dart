@@ -4,13 +4,13 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   static const String _baseUrl =
-      'https://07083806871b.ngrok-free.app/api'; // Mevcut base URL'niz
+      'https://07083806871b.ngrok-free.app/api'; // API'nızın temel URL'si
 
   static Future<String> mesajGonder(
     String message, {
     required String model,
     required String deviceId,
-    String? dosya,
+    String? dosya, // Dosya parametresi, eğer gönderilecekse kullanılacak
   }) async {
     final url = Uri.parse('$_baseUrl/chat');
     try {
@@ -18,10 +18,10 @@ class ApiService {
         url,
         headers: {'Content-Type': 'application/json', 'x-device-id': deviceId},
         body: jsonEncode({
-          'sessionId': deviceId, // Bu session ID'sini nasıl yönettiğinize bağlı
+          'sessionId': deviceId, // Session ID olarak deviceId kullanılıyor
           'message': message,
           'model': model,
-          // 'dosya': dosya, // Dosya gönderme entegrasyonu için burası düzenlenmeli
+          // 'dosya': dosya, // Eğer dosya gönderme backend'de implemente edilirse burayı açın
         }),
       );
 
@@ -53,7 +53,6 @@ class ApiService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Başarılı kayıt veya güncelleme
         print('Kullanıcı başarıyla kaydedildi/güncellendi.');
       } else {
         final errorBody = jsonDecode(response.body);
@@ -92,7 +91,6 @@ class ApiService {
           throw Exception('API yanıtında imageUrl bulunamadı.');
         }
       } else {
-        // Hata durumunda sunucudan gelen yanıtı veya standart bir hata mesajını döndür
         final errorBody = jsonDecode(response.body);
         throw Exception(
           'Görsel oluşturma başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
