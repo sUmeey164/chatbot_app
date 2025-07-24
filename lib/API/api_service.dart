@@ -2,12 +2,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:chatbot_app/chat_response.dart'; // Yeni oluşturduğumuz sınıfı import et
 
 class ApiService {
   static const String _baseUrl =
       'https://3d3ebbfe839d.ngrok-free.app/api/'; // API'nızın temel URL'si base url sonunda muhakkak / ile bitmeli
 
-  static Future<String> mesajGonder(
+  // GÜNCELLENMİŞ: mesajGonder metodu artık ChatResponse döndürüyor
+  static Future<ChatResponse> mesajGonder(
+    // Dönüş tipi değişti
     String message, {
     required String model,
     required String deviceId,
@@ -28,14 +31,29 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
+        String? replyText;
+        String? base64Image;
+
         if (data.containsKey('reply')) {
-          return data['reply'];
-        } else {
-          debugPrint(
-            'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.',
-          );
-          return 'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.';
+          replyText = data['reply'];
         }
+
+        // ÖNEMLİ: Backend'inizden gelen Base64 verisinin hangi JSON anahtarında olduğunu doğrulayın.
+        // Örneğin backend'iniz {"base64_image": "iVBORw0KGgoAAA..."} dönüyorsa 'base64_image' yazın.
+        // Örneğin backend'iniz {"image_data": "iVBORw0KGgoAAA..."} dönüyorsa 'image_data' yazın.
+        if (data.containsKey('base64_image')) {
+          // Varsayımsal anahtar: Lütfen backend'inize göre değiştirin!
+          base64Image = data['base64_image'];
+        }
+
+        if (replyText == null && base64Image == null) {
+          debugPrint(
+            'Sunucudan geçersiz yanıt: Yanıt içinde "reply" veya "base64_image" bulunamadı.',
+          );
+          throw Exception('Sunucudan geçersiz yanıt.');
+        }
+
+        return ChatResponse(replyText: replyText, base64Image: base64Image);
       } else {
         final errorBody = jsonDecode(response.body);
         throw Exception(
@@ -70,39 +88,6 @@ class ApiService {
     }
   }
 
-  // YENİ: Görsel oluşturma metodu
-  static Future<String> generateImage(
-    String prompt, {
-    required String deviceId,
-  }) async {
-    final url = Uri.parse(
-      '${_baseUrl}generate_image',
-    ); // Görsel oluşturma API'nızın endpoint'i
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json', 'x-device-id': deviceId},
-        body: jsonEncode({
-          'prompt': prompt,
-          'model': 'ImageGen', // Varsa görsel oluşturma için özel bir model adı
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        if (data.containsKey('imageUrl')) {
-          return data['imageUrl']; // API'nızın döndürdüğü görsel URL'si
-        } else {
-          throw Exception('API yanıtında imageUrl bulunamadı.');
-        }
-      } else {
-        final errorBody = jsonDecode(response.body);
-        throw Exception(
-          'Görsel oluşturma başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
-        );
-      }
-    } catch (e) {
-      throw Exception('Görsel oluşturma sırasında bir hata oluştu: $e');
-    }
-  }
+  // generateImage metodu artık kullanılmadığı için kaldırıldı.
+  // Tüm işlemler mesajGonder üzerinden yapılacak.
 }

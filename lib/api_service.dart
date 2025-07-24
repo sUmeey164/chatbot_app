@@ -1,78 +1,121 @@
-import 'dart:io';
-import 'dart:math';
+// lib/API/api_service.dart
+import 'dart:convert';
+import 'package:flutter/material.dart'; // debugPrint için
+import 'package:http/http.dart' as http;
 
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/material.dart';
-import 'package:chatbot_app/home_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+class ApiService {
+  static const String _baseUrl =
+      'https://3d3ebbfe839d.ngrok-free.app/api/'; // API'nızın temel URL'si base url sonunda muhakkak / ile bitmeli
 
-// Otomatik kullanıcı adı oluşturan fonksiyon
-String otomatikUsernameOlustur() {
-  const harfler = 'abcdefghijklmnopqrstuvwxyz';
-  Random rnd = Random();
-  String rastgeleHarfler = List.generate(
-    5,
-    (_) => harfler[rnd.nextInt(harfler.length)],
-  ).join();
-  int sayi = rnd.nextInt(9999);
-  return 'user_$rastgeleHarfler$sayi';
-}
-
-class KullaniciYonlendirici extends StatefulWidget {
-  const KullaniciYonlendirici({super.key});
-
-  @override
-  State<KullaniciYonlendirici> createState() => _KullaniciYonlendiriciState();
-}
-
-class _KullaniciYonlendiriciState extends State<KullaniciYonlendirici> {
-  @override
-  void initState() {
-    super.initState();
-    kullaniciBilgileriniHazirla();
-  }
-
-  Future<void> kullaniciBilgileriniHazirla() async {
+  static Future<String> mesajGonder(
+    String message, {
+    required String model,
+    required String deviceId,
+    String? dosya, // Dosya parametresi, eğer gönderilecekse kullanılacak
+  }) async {
+    final url = Uri.parse('${_baseUrl}chat');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final deviceInfo = DeviceInfoPlugin();
-
-      String deviceId = 'bilinmeyen_cihaz';
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        deviceId = androidInfo.id?.toString() ?? 'android_default_id';
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceId = iosInfo.identifierForVendor ?? 'ios_default_id';
-      } else {
-        deviceId = Platform.localHostname;
-      }
-
-      String? username = prefs.getString('username');
-
-      if (username == null) {
-        username = otomatikUsernameOlustur();
-        await prefs.setString('username', username);
-      }
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => HomePage(
-            deviceId: deviceId,
-            kullaniciAdi: username, // 👈 BU SATIRI DÜZENLEDİK
-          ),
-        ),
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json', 'x-device-id': deviceId},
+        body: jsonEncode({
+          'sessionId': deviceId, // Session ID olarak deviceId kullanılıyor
+          'message': message,
+          'model': model,
+          // 'dosya': dosya, // Eğer dosya gönderme backend'de implemente edilirse burayı açın
+        }),
       );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data.containsKey('reply')) {
+          return data['reply'];
+        } else {
+          debugPrint(
+            'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.',
+          );
+          return 'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.';
+        }
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(
+          'API isteği başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
+        );
+      }
     } catch (e) {
-      print("Kullanıcı bilgileri hazırlanırken hata: $e");
+      debugPrint('Mesaj gönderme sırasında hata: $e');
+      throw Exception('Mesaj gönderme sırasında bir hata oluştu: $e');
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(child: CircularProgressIndicator(color: Colors.deepPurple)),
+  static Future<void> kullaniciKaydet(String deviceId, String username) async {
+    final url = Uri.parse('${_baseUrl}users');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'deviceId': deviceId, 'username': username}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('Kullanıcı başarıyla kaydedildi/güncellendi.');
+      } else {
+        final errorBody = jsonDecode(response.body);
+        print(
+          'Kullanıcı kaydetme başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
+        );
+      }
+    } catch (e) {
+      print('Kullanıcı kaydetme sırasında hata: $e');
+    }
+  }
+
+  // GÜNCEL: Görsel oluşturma metodu - Base64 verisi bekleniyor
+  static Future<String> generateImage(
+    String prompt, {
+    required String deviceId,
+  }) async {
+    // BURADAKİ URL'NİN BACKEND'İNİZDEKİ GÖRSEL OLUŞTURMA ENDPOINT'İ İLE AYNI OLDUĞUNDAN EMİN OLUN
+    final url = Uri.parse(
+      '${_baseUrl}generate_image', // Bu kısım backend'inizdeki rota ile eşleşmeli (örn: /api/generate_image)
     );
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json', 'x-device-id': deviceId},
+        body: jsonEncode({
+          'prompt': prompt,
+          'model': 'ImageGen', // Varsa görsel oluşturma için özel bir model adı
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        // ÖNEMLİ: Backend'inizden gelen Base64 verisinin hangi JSON anahtarında olduğunu doğrulayın.
+        // Örneğin backend'iniz {"base64_image": "iVBORw0KGgoAAA..."} dönüyorsa 'base64_image' yazın.
+        // Örneğin backend'iniz {"image_data": "iVBORw0KGgoAAA..."} dönüyorsa 'image_data' yazın.
+        // Eğer backend doğrudan ham Base64 string'i dönüyorsa (JSON içinde değil),
+        // o zaman 'return response.body;' kullanmanız gerekirdi.
+        if (data.containsKey('base64_image')) {
+          // Varsayımsal anahtar: Lütfen backend'inize göre değiştirin!
+          final String base64Image = data['base64_image'];
+          if (base64Image.isEmpty) {
+            throw Exception('API yanıtında boş Base64 görsel verisi alındı.');
+          }
+          return base64Image; // Base64 string'ini döndürüyoruz
+        } else {
+          throw Exception(
+            'API yanıtında Base64 görsel verisi bulunamadı. Beklenen anahtar: "base64_image". Lütfen ApiService.dart dosyasını kontrol edin.',
+          );
+        }
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(
+          'Görsel oluşturma başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Görsel oluşturma sırasında bir hata oluştu: $e');
+    }
   }
 }

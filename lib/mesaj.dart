@@ -1,31 +1,33 @@
-// lib/mesaj.dart
+// lib/mesaj.dart (or wherever your Mesaj class is defined)
 class Mesaj {
   final bool kullanici;
   final String metin;
-  final String model; // Hangi modelin konuştuğu bilgisini tutar
-  final String? filePath; // Kullanıcının gönderdiği dosyanın/görselin yolu
-  final String?
-  fileType; // Kullanıcının gönderdiği dosyanın/görselin tipi ('image', 'file')
-  final String?
-  imageUrl; // YENİ: Yapay zeka tarafından oluşturulan görselin URL'si
+  final String? model;
+  final String? filePath;
+  final String? fileType;
+  final String? imageUrl; // Bu alan bir resmin harici URL'si içindir
+  final String? base64Image; // YENİ: Base64 verisi için bu alanı ekliyoruz
 
   Mesaj({
     required this.kullanici,
     required this.metin,
-    required this.model,
+    this.model,
     this.filePath,
     this.fileType,
-    this.imageUrl, // YENİ: Constructor'a ekleyin
+    this.imageUrl,
+    this.base64Image, // Constructor'a ekledik
   });
 
+  // fromJson ve toJson metodlarını da güncellediğinizden emin olun
   factory Mesaj.fromJson(Map<String, dynamic> json) {
     return Mesaj(
-      kullanici: json['kullanici'] as bool,
-      metin: json['metin'] as String,
-      model: json['model'] as String,
-      filePath: json['filePath'] as String?,
-      fileType: json['fileType'] as String?,
-      imageUrl: json['imageUrl'] as String?, // YENİ: fromJson metoduna ekleyin
+      kullanici: json['kullanici'],
+      metin: json['metin'],
+      model: json['model'],
+      filePath: json['filePath'],
+      fileType: json['fileType'],
+      imageUrl: json['imageUrl'],
+      base64Image: json['base64Image'], // fromJson'a ekledik
     );
   }
 
@@ -36,7 +38,8 @@ class Mesaj {
       'model': model,
       'filePath': filePath,
       'fileType': fileType,
-      'imageUrl': imageUrl, // YENİ: toJson metoduna ekleyin
+      'imageUrl': imageUrl,
+      'base64Image': base64Image, // toJson'a ekledik
     };
   }
 }

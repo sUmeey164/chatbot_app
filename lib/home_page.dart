@@ -6,14 +6,16 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io'; // Platform.isAndroid, Platform.isIOS, File için gerekli
+import 'dart:convert'; // base64Decode için bu satırı ekleyin!
 
 // Your custom classes should be imported using package:your_app_name/path_to_file.dart
 import 'package:chatbot_app/API/api_service.dart';
 import 'package:chatbot_app/baslikOlusturucu.dart';
 import 'package:chatbot_app/history_manager.dart';
 import 'package:chatbot_app/mesaj.dart';
-import 'package:chatbot_app/sohbet_gecmisi_sayfasi.dart';
+import 'package:chatbot_app/sohbet_gecmisi_sayfasi.dart'; // Yorum satırı yapılmış olsa da import kalsın
 import 'package:chatbot_app/SohbetOturumu.dart';
+import 'package:chatbot_app/chat_response.dart'; // Yeni oluşturduğumuz sınıfı import et
 
 final ImagePicker _picker = ImagePicker();
 
@@ -116,7 +118,7 @@ class _HomePageState extends State<HomePage> {
       return Colors.grey.shade800;
     }
 
-    final model = mesaj.model ?? 'Chatbot';
+    final model = mesaj.model; // model artık nullable değil
     switch (model) {
       case 'Gemini':
         return Colors.blue;
@@ -208,6 +210,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // GÜNCEL: mesajGonderVeGetir metodu - Hem metin hem görsel yanıtlarını işleyebilir
   void mesajGonderVeGetir(String mesaj) async {
     if (mesaj.trim().isEmpty && _selectedFilePath == null) return;
 
@@ -262,28 +265,75 @@ class _HomePageState extends State<HomePage> {
     await HistoryManager.addMessage(userMessage, _currentSession!.id);
 
     try {
-      final cevap = await ApiService.mesajGonder(
+      // API'den ChatResponse objesi alıyoruz
+      final ChatResponse apiResponse = await ApiService.mesajGonder(
         gonderilecekMetin,
         model: _selectedModel,
         deviceId: _deviceId,
       );
 
-      final botMessage = Mesaj(
-        metin: cevap,
-        kullanici: false,
-        model: _selectedModel,
-      );
+      // Metin yanıtı varsa ekle
+      if (apiResponse.replyText != null && apiResponse.replyText!.isNotEmpty) {
+        final botMessage = Mesaj(
+          metin: apiResponse.replyText!,
+          kullanici: false,
+          model: _selectedModel,
+        );
+        setState(() {
+          _messages.add(botMessage);
+        });
+        await HistoryManager.addMessage(botMessage, _currentSession!.id);
+      }
 
-      setState(() {
-        _messages.add(botMessage);
-      });
+      // Base64 görseli varsa ekle
+      if (apiResponse.base64Image != null &&
+          apiResponse.base64Image!.isNotEmpty) {
+        debugPrint(
+          'Base64 görsel verisi alındı. Uzunluk: ${apiResponse.base64Image!.length}',
+        );
+        final botImageMessage = Mesaj(
+          kullanici: false,
+          metin: 'İşte oluşturduğum görsel:', // Görsel için açıklama
+          model: _selectedModel,
+          base64Image:
+              apiResponse.base64Image!, // Base64 görseli Mesaj objesine kaydet
+        );
+        setState(() {
+          _messages.add(botImageMessage);
+        });
+        await HistoryManager.addMessage(botImageMessage, _currentSession!.id);
+      } else {
+        debugPrint('Base64 görsel verisi API yanıtında bulunamadı veya boş.');
+      }
 
-      await HistoryManager.addMessage(botMessage, _currentSession!.id);
+      // Eğer hem metin hem de görsel yoksa, bir hata mesajı göster
+      if (apiResponse.replyText == null && apiResponse.base64Image == null) {
+        setState(() {
+          _messages.add(
+            Mesaj(
+              metin: 'Sunucudan geçerli bir yanıt alınamadı.',
+              kullanici: false,
+              model: _selectedModel,
+            ),
+          );
+        });
+        await HistoryManager.addMessage(
+          Mesaj(
+            metin: 'Sunucudan geçerli bir yanıt alınamadı.',
+            kullanici: false,
+            model: _selectedModel,
+          ),
+          _currentSession!.id,
+        );
+      }
     } catch (e) {
+      debugPrint(
+        'Mesaj gönderme sırasında hata: $e',
+      ); // Hata detaylarını konsola yazdır
       setState(() {
         _messages.add(
           Mesaj(
-            metin: 'Sunucuya bağlanılamadı.',
+            metin: 'Sunucuya bağlanılamadı veya bir hata oluştu: $e',
             kullanici: false,
             model: _selectedModel,
           ),
@@ -291,7 +341,7 @@ class _HomePageState extends State<HomePage> {
       });
       await HistoryManager.addMessage(
         Mesaj(
-          metin: 'Sunucuya bağlanılamadı.',
+          metin: 'Sunucuya bağlanılamadı veya bir hata oluştu: $e',
           kullanici: false,
           model: _selectedModel,
         ),
@@ -424,58 +474,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // YENİ: Görsel oluşturma metodu
+  // GÜNCEL: Görsel oluşturma metodu - Artık doğrudan mesajGonderVeGetir'i çağırıyor
   void _generateImageFromPrompt(String prompt) async {
-    if (prompt.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Görsel oluşturmak için bir açıklama girin.'),
-        ),
-      );
-      return;
-    }
-
-    final userImageRequest = Mesaj(
-      kullanici: true,
-      metin: 'Görsel oluştur: "$prompt"',
-      model: _selectedModel,
-    );
-    setState(() {
-      _messages.add(userImageRequest);
-      _mesajController.clear();
-      _showCloseButton =
-          false; // Görsel oluşturma isteği gönderildiğinde X butonunu gizle
-    });
-    await HistoryManager.addMessage(userImageRequest, _currentSession!.id);
-
-    try {
-      final imageUrl = await ApiService.generateImage(
-        prompt,
-        deviceId: _deviceId,
-      );
-
-      final botImageMessage = Mesaj(
-        kullanici: false,
-        metin: 'İşte oluşturduğum görsel:',
-        model: _selectedModel,
-        imageUrl: imageUrl, // Oluşturulan görselin URL'sini buraya ata
-      );
-
-      setState(() {
-        _messages.add(botImageMessage);
-      });
-      await HistoryManager.addMessage(botImageMessage, _currentSession!.id);
-    } catch (e) {
-      final errorMessage = Mesaj(
-        metin: 'Görsel oluşturulamadı: $e',
-        kullanici: false,
-        model: _selectedModel,
-      );
-      setState(() {
-        _messages.add(errorMessage);
-      });
-      await HistoryManager.addMessage(errorMessage, _currentSession!.id);
-    }
+    // Görsel oluşturma isteğini doğrudan mesajGonderVeGetir metoduna iletiyoruz.
+    // Backend, bu prompt'u algılayıp görsel döndürmelidir.
+    mesajGonderVeGetir('Görsel oluştur: "$prompt"');
   }
 
   @override
@@ -631,26 +634,57 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Eğer oluşturulan görselin URL'si varsa göster
+                                // Base64 görseli varsa göster
+                                if (mesaj.base64Image != null &&
+                                    mesaj.base64Image!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      child: Image.memory(
+                                        // Düzeltme: Backend'den ön ek gelmediği için .split(',').last kaldırıldı.
+                                        base64Decode(mesaj.base64Image!),
+                                        width: 200,
+                                        height: 200,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          debugPrint(
+                                            'Base64 görsel yüklenemedi: $error',
+                                          );
+                                          return const Text(
+                                            'Görsel yüklenemedi (Base64).',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                // Eğer harici URL varsa göster (mevcut kodunuz)
+                                // Not: Backend'iniz base64 döndürdüğü için bu kısım şu an için kullanılmayabilir.
                                 if (mesaj.imageUrl != null)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
                                       child: Image.network(
-                                        // Image.network widget'ını kullanıyoruz
                                         mesaj.imageUrl!,
-                                        width: 200, // Görsel boyutu
-                                        height: 200, // Görsel boyutu
+                                        width: 200,
+                                        height: 200,
                                         fit: BoxFit.cover,
                                         errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                const Text(
-                                                  'Görsel yüklenemedi.',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                  ),
+                                            (context, error, stackTrace) {
+                                              debugPrint(
+                                                'URL görsel yüklenemedi: $error',
+                                              );
+                                              return const Text(
+                                                'Görsel yüklenemedi (URL).',
+                                                style: TextStyle(
+                                                  color: Colors.white,
                                                 ),
+                                              );
+                                            },
                                       ),
                                     ),
                                   ),
@@ -670,16 +704,17 @@ class _HomePageState extends State<HomePage> {
                                               height: 200,
                                               fit: BoxFit.cover,
                                               errorBuilder:
-                                                  (
-                                                    context,
-                                                    error,
-                                                    stackTrace,
-                                                  ) => const Text(
-                                                    'Görsel yüklenemedi.',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
+                                                  (context, error, stackTrace) {
+                                                    debugPrint(
+                                                      'Yerel görsel yüklenemedi (Web): $error',
+                                                    );
+                                                    return const Text(
+                                                      'Görsel yüklenemedi.',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                      ),
+                                                    );
+                                                  },
                                             )
                                           : Image.file(
                                               // Diğer platformlar için Image.file kullan
@@ -688,16 +723,17 @@ class _HomePageState extends State<HomePage> {
                                               height: 200,
                                               fit: BoxFit.cover,
                                               errorBuilder:
-                                                  (
-                                                    context,
-                                                    error,
-                                                    stackTrace,
-                                                  ) => const Text(
-                                                    'Görsel yüklenemedi.',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
+                                                  (context, error, stackTrace) {
+                                                    debugPrint(
+                                                      'Yerel görsel yüklenemedi (Mobil): $error',
+                                                    );
+                                                    return const Text(
+                                                      'Görsel yüklenemedi.',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                      ),
+                                                    );
+                                                  },
                                             ),
                                     ),
                                   ),
