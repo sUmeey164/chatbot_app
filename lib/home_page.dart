@@ -631,7 +631,7 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // YENİ: Eğer oluşturulan görselin URL'si varsa göster
+                                // Eğer oluşturulan görselin URL'si varsa göster
                                 if (mesaj.imageUrl != null)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
@@ -661,20 +661,44 @@ class _HomePageState extends State<HomePage> {
                                     padding: const EdgeInsets.only(bottom: 8.0),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
-                                      child: Image.file(
-                                        File(mesaj.filePath!),
-                                        width: 200,
-                                        height: 200,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                const Text(
-                                                  'Görsel yüklenemedi.',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
+                                      child:
+                                          kIsWeb // Web'de mi çalışıyoruz kontrolü
+                                          ? Image.network(
+                                              // Web için Image.network kullan
+                                              mesaj.filePath!,
+                                              width: 200,
+                                              height: 200,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => const Text(
+                                                    'Görsel yüklenemedi.',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                    ),
                                                   ),
-                                                ),
-                                      ),
+                                            )
+                                          : Image.file(
+                                              // Diğer platformlar için Image.file kullan
+                                              File(mesaj.filePath!),
+                                              width: 200,
+                                              height: 200,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => const Text(
+                                                    'Görsel yüklenemedi.',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                            ),
                                     ),
                                   ),
                                 // Eğer dosya varsa, dosya adını ve ikonu göster
@@ -783,9 +807,14 @@ class _HomePageState extends State<HomePage> {
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
                                         image: DecorationImage(
-                                          image: FileImage(
-                                            File(_selectedFilePath!),
-                                          ),
+                                          image:
+                                              kIsWeb // Web'de mi çalışıyoruz kontrolü
+                                              ? NetworkImage(_selectedFilePath!)
+                                                    as ImageProvider // Web için NetworkImage kullan
+                                              : FileImage(
+                                                      File(_selectedFilePath!),
+                                                    )
+                                                    as ImageProvider, // Diğer platformlar için FileImage kullan
                                           fit: BoxFit.cover,
                                         ),
                                       ),

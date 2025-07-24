@@ -4,6 +4,8 @@ import 'package:chatbot_app/history_manager.dart';
 import 'package:chatbot_app/mesaj.dart';
 import 'package:chatbot_app/SohbetOturumu.dart';
 import 'dart:io'; // File sınıfı için
+import 'package:flutter/foundation.dart'
+    show kIsWeb; // kIsWeb için bu importu ekleyin
 
 class SohbetGecmisiSayfasi extends StatefulWidget {
   final String deviceId;
@@ -108,7 +110,7 @@ class _SohbetGecmisiSayfasiState extends State<SohbetGecmisiSayfasi> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // YENİ: Eğer oluşturulan görselin URL'si varsa göster
+                        // Eğer oluşturulan görselin URL'si varsa göster
                         if (mesaj.imageUrl != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),
@@ -134,17 +136,38 @@ class _SohbetGecmisiSayfasiState extends State<SohbetGecmisiSayfasi> {
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
-                              child: Image.file(
-                                File(mesaj.filePath!),
-                                width: 200,
-                                height: 200,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Text(
-                                      'Görsel yüklenemedi.',
-                                      style: TextStyle(color: Colors.white),
+                              child:
+                                  kIsWeb // Web'de mi çalışıyoruz kontrolü
+                                  ? Image.network(
+                                      // Web için Image.network kullan
+                                      mesaj.filePath!,
+                                      width: 200,
+                                      height: 200,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Text(
+                                                'Görsel yüklenemedi.',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                    )
+                                  : Image.file(
+                                      // Diğer platformlar için Image.file kullan
+                                      File(mesaj.filePath!),
+                                      width: 200,
+                                      height: 200,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Text(
+                                                'Görsel yüklenemedi.',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
                                     ),
-                              ),
                             ),
                           ),
                         // Eğer dosya varsa, dosya adını ve ikonu göster

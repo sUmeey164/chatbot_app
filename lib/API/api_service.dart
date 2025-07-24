@@ -1,10 +1,11 @@
 // lib/API/api_service.dart
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
   static const String _baseUrl =
-      'https://07083806871b.ngrok-free.app/api'; // API'nızın temel URL'si
+      'https://3d3ebbfe839d.ngrok-free.app/api/'; // API'nızın temel URL'si base url sonunda muhakkak / ile bitmeli
 
   static Future<String> mesajGonder(
     String message, {
@@ -12,7 +13,7 @@ class ApiService {
     required String deviceId,
     String? dosya, // Dosya parametresi, eğer gönderilecekse kullanılacak
   }) async {
-    final url = Uri.parse('$_baseUrl/chat');
+    final url = Uri.parse('${_baseUrl}chat');
     try {
       final response = await http.post(
         url,
@@ -30,6 +31,9 @@ class ApiService {
         if (data.containsKey('reply')) {
           return data['reply'];
         } else {
+          debugPrint(
+            'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.',
+          );
           return 'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.';
         }
       } else {
@@ -39,12 +43,13 @@ class ApiService {
         );
       }
     } catch (e) {
+      debugPrint('Mesaj gönderme sırasında hata: $e');
       throw Exception('Mesaj gönderme sırasında bir hata oluştu: $e');
     }
   }
 
   static Future<void> kullaniciKaydet(String deviceId, String username) async {
-    final url = Uri.parse('$_baseUrl/users');
+    final url = Uri.parse('${_baseUrl}users');
     try {
       final response = await http.post(
         url,
@@ -71,7 +76,7 @@ class ApiService {
     required String deviceId,
   }) async {
     final url = Uri.parse(
-      '$_baseUrl/generate_image',
+      '${_baseUrl}generate_image',
     ); // Görsel oluşturma API'nızın endpoint'i
     try {
       final response = await http.post(
