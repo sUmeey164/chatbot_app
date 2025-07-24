@@ -1,38 +1,43 @@
-import 'dart:io'; // Platform.isIOS, Platform.isAndroid vb. için
-
+// lib/mesaj.dart
 class Mesaj {
+  final bool kullanici;
   final String metin;
-  final bool kullanici; // true ise kullanıcı mesajı, false ise bot mesajı
-  final String? model; // Hangi modelden geldiği bilgisi
+  final String model; // Hangi modelin konuştuğu bilgisini tutar
+  final String? filePath; // Kullanıcının gönderdiği dosyanın/görselin yolu
   final String?
-  filePath; // YENİ: Gönderilen dosyanın yolu (resim veya başka bir dosya)
-  String? fileType; // YENİ: Dosya türü (e.g., 'image', 'file')
+  fileType; // Kullanıcının gönderdiği dosyanın/görselin tipi ('image', 'file')
+  final String?
+  imageUrl; // YENİ: Yapay zeka tarafından oluşturulan görselin URL'si
 
   Mesaj({
-    required this.metin,
     required this.kullanici,
-    this.model,
-    this.filePath, // Constructor'a eklendi
-    this.fileType, // Constructor'a eklendi
+    required this.metin,
+    required this.model,
+    this.filePath,
+    this.fileType,
+    this.imageUrl, // YENİ: Buraya da ekleyin
   });
 
+  // Factory metodu veya fromJson metodu varsa onu da imageUrl ile güncelleyin
   factory Mesaj.fromJson(Map<String, dynamic> json) {
     return Mesaj(
-      metin: json['metin'] as String,
       kullanici: json['kullanici'] as bool,
-      model: json['model'] as String?,
-      filePath: json['filePath'] as String?, // JSON'dan oku
-      fileType: json['fileType'] as String?, // JSON'dan oku
+      metin: json['metin'] as String,
+      model: json['model'] as String,
+      filePath: json['filePath'] as String?,
+      fileType: json['fileType'] as String?,
+      imageUrl: json['imageUrl'] as String?, // YENİ: Burada da ekleyin
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'metin': metin,
       'kullanici': kullanici,
+      'metin': metin,
       'model': model,
-      'filePath': filePath, // JSON'a yaz
-      'fileType': fileType, // JSON'a yaz
+      'filePath': filePath,
+      'fileType': fileType,
+      'imageUrl': imageUrl, // YENİ: Burada da ekleyin
     };
   }
 }

@@ -1,72 +1,105 @@
+// lib/API/api_service.dart
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:device_info_plus/device_info_plus.dart';
-
-Future<String> cihazIDAl() async {
-  DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-  AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-  return androidInfo.id;
-}
 
 class ApiService {
+  static const String _baseUrl =
+      'https://07083806871b.ngrok-free.app/api'; // Mevcut base URL'niz
+
   static Future<String> mesajGonder(
-    String mesaj, {
+    String message, {
     required String model,
     required String deviceId,
-    File? dosya,
+    String? dosya,
   }) async {
-    print('🔄 Endpointine istek gönderiliyor: $mesaj');
-
-    String urlString = 'https://07083806871b.ngrok-free.app/api/chat';
-    final url = Uri.parse(urlString);
-
-    final Map<String, String> headers = {
-      "Content-Type": "application/json",
-      "x-device-id": deviceId, // BURAYA EKLENDİ
-    };
-
-    final body = jsonEncode({
-      "sessionId": "flutter_session_01",
-      "message": mesaj,
-      "model": model,
-    });
-
+    final url = Uri.parse('$_baseUrl/chat');
     try {
-      final response = await http.post(url, headers: headers, body: body);
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json', 'x-device-id': deviceId},
+        body: jsonEncode({
+          'sessionId': deviceId, // Bu session ID'sini nasıl yönettiğinize bağlı
+          'message': message,
+          'model': model,
+          // 'dosya': dosya, // Dosya gönderme entegrasyonu için burası düzenlenmeli
+        }),
+      );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['reply'] ?? 'Yanıt alınamadı';
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data.containsKey('reply')) {
+          return data['reply'];
+        } else {
+          return 'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.';
+        }
       } else {
-        print('Sunucu cevabı: ${response.body}');
-        throw Exception('Sunucu hatası: ${response.statusCode}');
+        final errorBody = jsonDecode(response.body);
+        throw Exception(
+          'API isteği başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
+        );
       }
     } catch (e) {
-      print("Hata oluştu: $e");
-      throw Exception('Sunucuya bağlanılamadı.$e');
+      throw Exception('Mesaj gönderme sırasında bir hata oluştu: $e');
     }
   }
 
   static Future<void> kullaniciKaydet(String deviceId, String username) async {
-    final url = Uri.parse('https://07083806871b.ngrok-free.app/api/chat');
-
-    final headers = {
-      'Content-Type': 'application/json',
-      'x-device-id': deviceId, // burası kritik
-    };
-
-    final body = jsonEncode({"deviceId": deviceId, "username": username});
-
+    final url = Uri.parse('$_baseUrl/users');
     try {
-      final response = await http.post(url, headers: headers, body: body);
-      if (response.statusCode == 200) {
-        print(" Kullanıcı başarıyla kaydedildi.");
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'deviceId': deviceId, 'username': username}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Başarılı kayıt veya güncelleme
+        print('Kullanıcı başarıyla kaydedildi/güncellendi.');
       } else {
-        print(" Kullanıcı kaydı başarısız: ${response.statusCode}");
+        final errorBody = jsonDecode(response.body);
+        print(
+          'Kullanıcı kaydetme başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
+        );
       }
     } catch (e) {
-      print(" Kullanıcı kaydı hatası: $e");
+      print('Kullanıcı kaydetme sırasında hata: $e');
+    }
+  }
+
+  // YENİ: Görsel oluşturma metodu
+  static Future<String> generateImage(
+    String prompt, {
+    required String deviceId,
+  }) async {
+    final url = Uri.parse(
+      '$_baseUrl/generate_image',
+    ); // Görsel oluşturma API'nızın endpoint'i
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json', 'x-device-id': deviceId},
+        body: jsonEncode({
+          'prompt': prompt,
+          'model': 'ImageGen', // Varsa görsel oluşturma için özel bir model adı
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data.containsKey('imageUrl')) {
+          return data['imageUrl']; // API'nızın döndürdüğü görsel URL'si
+        } else {
+          throw Exception('API yanıtında imageUrl bulunamadı.');
+        }
+      } else {
+        // Hata durumunda sunucudan gelen yanıtı veya standart bir hata mesajını döndür
+        final errorBody = jsonDecode(response.body);
+        throw Exception(
+          'Görsel oluşturma başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Görsel oluşturma sırasında bir hata oluştu: $e');
     }
   }
 }

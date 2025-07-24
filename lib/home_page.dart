@@ -3,9 +3,9 @@ import 'package:chatbot_app/sobet_oturumlari_sayfasi.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart'; // Bu satır düzeltildi!
+import 'package:image_picker/image_picker.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io'; // Platform.isAndroid, Platform.isIOS, File için gerekli
+import 'dart:io';
 
 // Your custom classes should be imported using package:your_app_name/path_to_file.dart
 import 'package:chatbot_app/API/api_service.dart';
@@ -45,6 +45,7 @@ class _HomePageState extends State<HomePage> {
   String? _selectedFilePath;
   String? _selectedFileName;
   String? _selectedFileType; // 'image', 'file', null
+  bool _showCloseButton = false; // YENİ: Kapatma butonu görünürlüğü için durum
 
   // _initializeChat'in sadece bir kez çalışmasını sağlamak için bayrak
   bool _isChatInitialized = false;
@@ -247,6 +248,7 @@ class _HomePageState extends State<HomePage> {
       _selectedFileName = null;
       _selectedFilePath = null;
       _selectedFileType = null;
+      _showCloseButton = false; // Mesaj gönderildiğinde X butonunu gizle
     });
 
     _mesajController.clear();
@@ -540,6 +542,7 @@ class _HomePageState extends State<HomePage> {
             },
             tooltip: 'Sohbet Oturumları',
           ),
+          /*
           IconButton(
             icon: const Icon(Icons.history, color: Colors.white),
             onPressed: () {
@@ -555,6 +558,7 @@ class _HomePageState extends State<HomePage> {
             },
             tooltip: 'Bu Sohbetin Geçmişi',
           ),
+          */
         ],
       ),
       body: _isLoading
@@ -598,16 +602,13 @@ class _HomePageState extends State<HomePage> {
                                         height: 200,
                                         fit: BoxFit.cover,
                                         errorBuilder:
-                                            (
-                                              context,
-                                              error,
-                                              stackTrace,
-                                            ) => const Text(
-                                              'Görsel yüklenemedi.',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                              ),
-                                            ), // Sadece bir tane color kullanın// Hata mesajı beyaz olsun
+                                            (context, error, stackTrace) =>
+                                                const Text(
+                                                  'Görsel yüklenemedi.',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
                                       ),
                                     ),
                                   ),
@@ -647,9 +648,7 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                 // Eğer mesaj metni varsa göster (görsel veya dosya olsa bile)
-                                if (mesaj
-                                    .metin
-                                    .isNotEmpty) // Sadece metin varsa göster
+                                if (mesaj.metin.isNotEmpty)
                                   Text(
                                     mesaj.metin,
                                     style: const TextStyle(color: Colors.white),
@@ -683,56 +682,130 @@ class _HomePageState extends State<HomePage> {
                     ),
                   // Seçilen dosya için önizleme alanı (mesaj giriş kutusunun üstünde)
                   if (_selectedFilePath != null)
-                    Container(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[800],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          if (_selectedFileType == 'image')
-                            // Görsel önizlemesi
-                            Container(
-                              width: 60,
-                              height: 60,
-                              margin: const EdgeInsets.only(right: 8),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                image: DecorationImage(
-                                  image: FileImage(File(_selectedFilePath!)),
-                                  fit: BoxFit.cover,
-                                ),
+                    Align(
+                      // Sol köşeye hizalamak için Align eklendi
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(
+                          left: 16,
+                          top: 4,
+                          bottom: 4,
+                        ), // Sadece soldan boşluk bırakıldı
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[800],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              // Önizleme alanını tıklanabilir yapmak için
+                              onTap: () {
+                                setState(() {
+                                  _showCloseButton =
+                                      !_showCloseButton; // X butonunun görünürlüğünü aç/kapa
+                                });
+                              },
+                              child: Stack(
+                                clipBehavior: Clip
+                                    .none, // Allows button to slightly overflow for visual effect
+                                children: [
+                                  // Önizleme içeriği (görsel veya dosya ikonu)
+                                  if (_selectedFileType == 'image')
+                                    Container(
+                                      width: 80, // Increased size
+                                      height: 80, // Increased size
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        image: DecorationImage(
+                                          image: FileImage(
+                                            File(_selectedFilePath!),
+                                          ),
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    )
+                                  else // _selectedFileType == 'file'
+                                    // Dosya adı ve ikonu için yeni düzenleme
+                                    Container(
+                                      width: 120, // Daha geniş bir alan
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade700,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      padding: const EdgeInsets.all(8),
+                                      alignment: Alignment.center,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.insert_drive_file,
+                                            color: Colors.white70,
+                                            size: 32,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Flexible(
+                                            child: Text(
+                                              _selectedFileName ??
+                                                  'Seçili Dosya',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                  // Kapatma butonu (sadece _showCloseButton true ise görünür)
+                                  if (_showCloseButton)
+                                    Positioned(
+                                      top: 5, // Positioned within the thumbnail
+                                      right:
+                                          5, // Positioned within the thumbnail
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(
+                                            0.6,
+                                          ), // Dark translucent background for circle
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ), // Smaller icon
+                                          onPressed: () {
+                                            setState(() {
+                                              _selectedFilePath = null;
+                                              _selectedFileName = null;
+                                              _selectedFileType = null;
+                                              _showCloseButton =
+                                                  false; // Silindikten sonra X butonunu gizle
+                                            });
+                                          },
+                                          visualDensity: VisualDensity
+                                              .compact, // Make button smaller
+                                          padding: EdgeInsets
+                                              .zero, // Remove extra padding
+                                          constraints: const BoxConstraints(
+                                            minWidth: 28,
+                                            minHeight: 28,
+                                          ), // Define compact size
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
-                            )
-                          else
-                            // Dosya ikonu
-                            const Icon(
-                              Icons.insert_drive_file,
-                              color: Colors.white70,
-                              size: 20, // İkon boyutu
                             ),
-                          const SizedBox(
-                            width: 8,
-                          ), // İkon ile kapatma butonu arasına boşluk
-                          IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: Colors.white70,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _selectedFilePath = null;
-                                _selectedFileName = null;
-                                _selectedFileType = null;
-                              });
-                            },
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   // Mesaj giriş alanı: Bu tek kopya kalacak.

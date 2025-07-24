@@ -108,6 +108,27 @@ class _SohbetGecmisiSayfasiState extends State<SohbetGecmisiSayfasi> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // YENİ: Eğer oluşturulan görselin URL'si varsa göster
+                        if (mesaj.imageUrl != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Image.network(
+                                // Image.network widget'ını kullanıyoruz
+                                mesaj.imageUrl!,
+                                width: 200, // Görsel boyutu
+                                height: 200, // Görsel boyutu
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Text(
+                                      'Görsel yüklenemedi.',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                              ),
+                            ),
+                          ),
+                        // Eğer kullanıcının gönderdiği bir görsel yolu varsa
                         if (mesaj.filePath != null && mesaj.fileType == 'image')
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),
@@ -122,10 +143,11 @@ class _SohbetGecmisiSayfasiState extends State<SohbetGecmisiSayfasi> {
                                     const Text(
                                       'Görsel yüklenemedi.',
                                       style: TextStyle(color: Colors.white),
-                                    ), // Sadece bir tane color kullanın
+                                    ),
                               ),
                             ),
                           ),
+                        // Eğer dosya varsa, dosya adını ve ikonu göster
                         if (mesaj.filePath != null && mesaj.fileType == 'file')
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),
