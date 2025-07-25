@@ -1,54 +1,83 @@
 // lib/API/api_service.dart
 import 'dart:convert';
-import 'package:flutter/material.dart'; // debugPrint için
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:chatbot_app/chat_response.dart'; // New class we created, already English
 
 class ApiService {
+  // Your API's base URL. Make sure the base URL always ends with a /
   static const String _baseUrl =
-      'https://3d3ebbfe839d.ngrok-free.app/api/'; // API'nızın temel URL'si base url sonunda muhakkak / ile bitmeli
+      'https://YOUR_NGROK_URL_HERE.ngrok-free.app/api/';
 
-  static Future<String> mesajGonder(
+  // UPDATED: sendMessage method now returns ChatResponse and can receive Base64 image
+  static Future<ChatResponse> sendMessage(
+    // Renamed from mesajGonder
     String message, {
     required String model,
     required String deviceId,
-    String? dosya, // Dosya parametresi, eğer gönderilecekse kullanılacak
+    String? base64Image, // New: Base64 image data
   }) async {
     final url = Uri.parse('${_baseUrl}chat');
     try {
+      final Map<String, dynamic> bodyData = {
+        'sessionId': deviceId, // deviceId is used as Session ID
+        'message': message,
+        'model': model,
+      };
+
+      // Add Base64 image data to the body if available
+      if (base64Image != null && base64Image.isNotEmpty) {
+        bodyData['image_data'] = base64Image; // The key your backend expects!
+      }
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json', 'x-device-id': deviceId},
-        body: jsonEncode({
-          'sessionId': deviceId, // Session ID olarak deviceId kullanılıyor
-          'message': message,
-          'model': model,
-          // 'dosya': dosya, // Eğer dosya gönderme backend'de implemente edilirse burayı açın
-        }),
+        body: jsonEncode(bodyData),
       );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
+        String? replyText;
+        String? base64ImageResponse;
+
         if (data.containsKey('reply')) {
-          return data['reply'];
-        } else {
-          debugPrint(
-            'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.',
-          );
-          return 'Sunucudan geçersiz yanıt: Yanıt içinde "reply" bulunamadı.';
+          replyText = data['reply'];
         }
+
+        // IMPORTANT: Verify which JSON key your backend sends the Base64 data in.
+        // For example, if your backend returns {"base64_image": "iVBORw0KGgoAAA..."} write 'base64_image'.
+        // For example, if your backend returns {"image_data": "iVBORw0KGgoAAA..."} write 'image_data'.
+        if (data.containsKey('base64_image')) {
+          // Hypothetical key: Please change according to your backend!
+          base64ImageResponse = data['base64_image'];
+        }
+
+        if (replyText == null && base64ImageResponse == null) {
+          debugPrint(
+            'Invalid response from server: "reply" or "base64_image" not found in response.',
+          );
+          throw Exception('Invalid response from server.');
+        }
+
+        return ChatResponse(
+          replyText: replyText,
+          base64Image: base64ImageResponse,
+        );
       } else {
         final errorBody = jsonDecode(response.body);
         throw Exception(
-          'API isteği başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
+          'API request failed: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
         );
       }
     } catch (e) {
-      debugPrint('Mesaj gönderme sırasında hata: $e');
-      throw Exception('Mesaj gönderme sırasında bir hata oluştu: $e');
+      debugPrint('Error sending message: $e');
+      throw Exception('An error occurred while sending the message: $e');
     }
   }
 
-  static Future<void> kullaniciKaydet(String deviceId, String username) async {
+  static Future<void> saveUser(String deviceId, String username) async {
+    // Renamed kullaniciKaydet
     final url = Uri.parse('${_baseUrl}users');
     try {
       final response = await http.post(
@@ -58,64 +87,18 @@ class ApiService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('Kullanıcı başarıyla kaydedildi/güncellendi.');
+        print('User successfully saved/updated.');
       } else {
         final errorBody = jsonDecode(response.body);
         print(
-          'Kullanıcı kaydetme başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
+          'Failed to save user: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
         );
       }
     } catch (e) {
-      print('Kullanıcı kaydetme sırasında hata: $e');
+      print('Error saving user: $e');
     }
   }
 
-  // GÜNCEL: Görsel oluşturma metodu - Base64 verisi bekleniyor
-  static Future<String> generateImage(
-    String prompt, {
-    required String deviceId,
-  }) async {
-    // BURADAKİ URL'NİN BACKEND'İNİZDEKİ GÖRSEL OLUŞTURMA ENDPOINT'İ İLE AYNI OLDUĞUNDAN EMİN OLUN
-    final url = Uri.parse(
-      '${_baseUrl}generate_image', // Bu kısım backend'inizdeki rota ile eşleşmeli (örn: /api/generate_image)
-    );
-    try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json', 'x-device-id': deviceId},
-        body: jsonEncode({
-          'prompt': prompt,
-          'model': 'ImageGen', // Varsa görsel oluşturma için özel bir model adı
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        // ÖNEMLİ: Backend'inizden gelen Base64 verisinin hangi JSON anahtarında olduğunu doğrulayın.
-        // Örneğin backend'iniz {"base64_image": "iVBORw0KGgoAAA..."} dönüyorsa 'base64_image' yazın.
-        // Örneğin backend'iniz {"image_data": "iVBORw0KGgoAAA..."} dönüyorsa 'image_data' yazın.
-        // Eğer backend doğrudan ham Base64 string'i dönüyorsa (JSON içinde değil),
-        // o zaman 'return response.body;' kullanmanız gerekirdi.
-        if (data.containsKey('base64_image')) {
-          // Varsayımsal anahtar: Lütfen backend'inize göre değiştirin!
-          final String base64Image = data['base64_image'];
-          if (base64Image.isEmpty) {
-            throw Exception('API yanıtında boş Base64 görsel verisi alındı.');
-          }
-          return base64Image; // Base64 string'ini döndürüyoruz
-        } else {
-          throw Exception(
-            'API yanıtında Base64 görsel verisi bulunamadı. Beklenen anahtar: "base64_image". Lütfen ApiService.dart dosyasını kontrol edin.',
-          );
-        }
-      } else {
-        final errorBody = jsonDecode(response.body);
-        throw Exception(
-          'Görsel oluşturma başarısız oldu: ${response.statusCode} - ${errorBody['message'] ?? response.reasonPhrase}',
-        );
-      }
-    } catch (e) {
-      throw Exception('Görsel oluşturma sırasında bir hata oluştu: $e');
-    }
-  }
+  // generateImage method was removed as it's no longer used.
+  // All operations will be done via sendMessage.
 }

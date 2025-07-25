@@ -1,19 +1,21 @@
-// lib/sobet_oturumlari_sayfasi.dart
+// lib/chat_sessions_page.dart // Renamed file
 import 'package:flutter/material.dart';
 import 'package:chatbot_app/history_manager.dart';
-import 'package:chatbot_app/SohbetOturumu.dart';
-import 'package:chatbot_app/sohbet_gecmisi_sayfasi.dart';
+import 'package:chatbot_app/chat_session.dart'; // Renamed from SohbetOturumu.dart
+import 'package:chatbot_app/chat_history_page.dart'; // Renamed from sohbet_gecmisi_sayfasi.dart
 
-class SohbetOturumlariSayfasi extends StatefulWidget {
-  const SohbetOturumlariSayfasi({Key? key}) : super(key: key);
+class ChatSessionsPage extends StatefulWidget {
+  // Renamed class
+  const ChatSessionsPage({Key? key}) : super(key: key);
 
   @override
-  _SohbetOturumlariSayfasiState createState() =>
-      _SohbetOturumlariSayfasiState();
+  _ChatSessionsPageState createState() => // Renamed state class
+      _ChatSessionsPageState(); // Renamed state class
 }
 
-class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
-  List<SohbetOturumu> _sessions = [];
+class _ChatSessionsPageState extends State<ChatSessionsPage> {
+  // Renamed state class
+  List<ChatSession> _sessions = []; // Renamed ChatSession
   bool _isLoading = true;
 
   @override
@@ -33,8 +35,9 @@ class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
     });
   }
 
-  // HomePage'deki mesajRengi fonksiyonunun benzeri, burada oturum rengini belirlemek için kullanılacak
+  // Similar to the messageColor function in HomePage, used here to determine session color
   Color getSessionColor(String? model) {
+    // Renamed getSessionColor
     switch (model) {
       case 'Gemini':
         return Colors.blue;
@@ -55,7 +58,7 @@ class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
       appBar: AppBar(
         backgroundColor: Colors.grey[900],
         title: const Text(
-          'Sohbet Oturumları',
+          'Chat Sessions', // Translated string literal
           style: TextStyle(color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -67,7 +70,7 @@ class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
           : _sessions.isEmpty
           ? const Center(
               child: Text(
-                'Henüz sohbet oturumu bulunmamaktadır.',
+                'No chat sessions found yet.', // Translated string literal
                 style: TextStyle(color: Colors.white70, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
@@ -94,19 +97,21 @@ class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
                       color: sessionCardColor,
                     ),
                     title: Text(
-                      session.baslik.isNotEmpty
-                          ? session.baslik
-                          : 'Adsız Sohbet Oturumu',
+                      session
+                              .title
+                              .isNotEmpty // Renamed baslik to title
+                          ? session
+                                .title // Renamed baslik to title
+                          : 'Untitled Chat Session', // Translated string literal
                       style: TextStyle(
-                        color:
-                            sessionCardColor, // Burada doğrudan rengi kullanın
+                        color: sessionCardColor, // Use color directly here
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      '${session.mesajlar.length} mesaj - ${session.model ?? 'Bilinmeyen Model'}',
+                      '${session.messages.length} messages - ${session.model ?? 'Unknown Model'}', // Renamed mesajlar, translated string literal
                       style: const TextStyle(color: Colors.white70),
                     ),
                     trailing: IconButton(
@@ -116,11 +121,11 @@ class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
                           context: context,
                           builder: (context) => AlertDialog(
                             title: const Text(
-                              'Oturumu Sil',
+                              'Delete Session', // Translated string literal
                               style: TextStyle(color: Colors.white),
                             ),
                             content: const Text(
-                              'Bu sohbet oturumunu silmek istediğinizden emin misiniz?',
+                              'Are you sure you want to delete this chat session?', // Translated string literal
                               style: TextStyle(color: Colors.white70),
                             ),
                             backgroundColor: Colors.grey[850],
@@ -128,14 +133,14 @@ class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
                               TextButton(
                                 onPressed: () => Navigator.pop(context, false),
                                 child: const Text(
-                                  'İptal',
+                                  'Cancel', // Translated string literal
                                   style: TextStyle(color: Colors.white70),
                                 ),
                               ),
                               TextButton(
                                 onPressed: () => Navigator.pop(context, true),
                                 child: const Text(
-                                  'Sil',
+                                  'Delete', // Translated string literal
                                   style: TextStyle(color: Colors.red),
                                 ),
                               ),
@@ -152,10 +157,11 @@ class _SohbetOturumlariSayfasiState extends State<SohbetOturumlariSayfasi> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SohbetGecmisiSayfasi(
+                          builder: (context) => ChatHistoryPage(
+                            // Renamed SohbetGecmisiSayfasi
                             deviceId: session.deviceId,
                             sessionId: session
-                                .id, // Belirli bir oturumu yüklemek için session ID'sini gönder
+                                .id, // Send session ID to load a specific session
                           ),
                         ),
                       ).then((_) {

@@ -1,38 +1,46 @@
-// lib/sohbet_ekrani.dart
+// lib/chat_screen.dart // Renamed file
 import 'package:flutter/material.dart';
-import 'package:chatbot_app/SohbetOturumu.dart'; // Düzeltilen import
-import 'package:chatbot_app/history_manager.dart'; // Düzeltilen import
-import 'package:chatbot_app/mesaj.dart'; // Düzeltilen import
-import 'dart:io'; // File sınıfı için gerekli
+import 'package:chatbot_app/chat_session.dart'; // Corrected import (renamed from SohbetOturumu.dart)
+import 'package:chatbot_app/history_manager.dart'; // Corrected import
+import 'package:chatbot_app/message.dart'; // Corrected import (renamed from mesaj.dart)
+import 'dart:io'; // Required for File class
 
-class SohbetEkrani extends StatefulWidget {
-  final SohbetOturumu session;
+class ChatScreen extends StatefulWidget {
+  // Renamed class
+  final ChatSession session; // Renamed ChatSession
 
-  const SohbetEkrani({
+  const ChatScreen({
     Key? key,
-    required this.session, // Sadece bu parametre yeterli
+    required this.session, // Only this parameter is sufficient
   }) : super(key: key);
 
   @override
-  _SohbetEkraniState createState() => _SohbetEkraniState();
+  _ChatScreenState createState() => _ChatScreenState(); // Renamed state class
 }
 
-class _SohbetEkraniState extends State<SohbetEkrani> {
-  late List<Mesaj> _mesajlar;
-  final TextEditingController _mesajController = TextEditingController();
+class _ChatScreenState extends State<ChatScreen> {
+  // Renamed state class
+  late List<Message> _messages; // Renamed _mesajlar, Message
+  final TextEditingController _messageController =
+      TextEditingController(); // Renamed _mesajController
 
   @override
   void initState() {
     super.initState();
-    _mesajlar = List.from(widget.session.mesajlar);
+    _messages = List.from(
+      widget.session.messages,
+    ); // Renamed _mesajlar, messages
   }
 
-  // Mesaj renklerini belirlemek için basit bir fonksiyon
-  Color _getMesajRengi(Mesaj mesaj) {
-    if (mesaj.kullanici) {
+  // A simple function to determine message colors
+  Color _getMessageColor(Message message) {
+    // Renamed _getMesajRengi, Message
+    if (message.isUser) {
+      // Renamed kullanici to isUser
       return Colors.blue[200]!;
     }
-    switch (mesaj.model) {
+    switch (message.model) {
+      // Renamed mesaj.model
       case 'Gemini':
         return Colors.blue.shade100;
       case 'ChatGPT':
@@ -45,32 +53,41 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
     }
   }
 
-  void _mesajGonder() async {
-    final metin = _mesajController.text.trim();
-    if (metin.isEmpty) return;
+  void _sendMessage() async {
+    // Renamed _mesajGonder
+    final text = _messageController.text
+        .trim(); // Renamed metin, _mesajController
+    if (text.isEmpty) return;
 
-    final userModel =
-        widget.session.model ?? 'Chatbot'; // Null kontrolü yapıldı
+    final userModel = widget.session.model ?? 'Chatbot'; // Null check performed
 
     setState(() {
-      _mesajlar.add(Mesaj(metin: metin, kullanici: true, model: userModel));
+      _messages.add(
+        Message(text: text, isUser: true, model: userModel),
+      ); // Renamed Mesaj, metin, kullanici, text, isUser
     });
-    _mesajController.clear();
+    _messageController.clear(); // Renamed _mesajController
 
-    final botCevabi = "Bot cevabı: $metin"; // Simüle edilmiş bot cevabı
+    final botResponse =
+        "Bot response: $text"; // Simulated bot response // Renamed botCevabi, translated string literal
 
     setState(() {
-      _mesajlar.add(
-        Mesaj(metin: botCevabi, kullanici: false, model: userModel),
+      _messages.add(
+        Message(
+          text: botResponse,
+          isUser: false,
+          model: userModel,
+        ), // Renamed Mesaj, metin, kullanici, text, isUser
       );
     });
 
-    final updatedSession = SohbetOturumu(
+    final updatedSession = ChatSession(
+      // Renamed SohbetOturumu
       id: widget.session.id,
-      baslik: widget.session.baslik,
-      mesajlar: _mesajlar,
-      deviceId: widget.session.deviceId, // Doğru deviceId kullanımı
-      model: widget.session.model, // Doğru model kullanımı
+      title: widget.session.title, // Renamed baslik to title
+      messages: _messages, // Renamed mesajlar to messages
+      deviceId: widget.session.deviceId, // Correct deviceId usage
+      model: widget.session.model, // Correct model usage
     );
 
     await HistoryManager.updateSession(updatedSession);
@@ -82,7 +99,7 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text(
-          widget.session.baslik,
+          widget.session.title, // Renamed baslik to title
           style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.grey[900],
@@ -93,11 +110,13 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _mesajlar.length,
+              itemCount: _messages.length, // Renamed _mesajlar
               itemBuilder: (context, index) {
-                final mesaj = _mesajlar[index];
+                final message = _messages[index]; // Renamed mesaj, _mesajlar
                 return Align(
-                  alignment: mesaj.kullanici
+                  alignment:
+                      message
+                          .isUser // Renamed kullanici
                       ? Alignment.centerRight
                       : Alignment.centerLeft,
                   child: Container(
@@ -108,52 +127,56 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                     padding: const EdgeInsets.all(12),
                     constraints: const BoxConstraints(maxWidth: 280),
                     decoration: BoxDecoration(
-                      color: _getMesajRengi(mesaj),
+                      color: _getMessageColor(
+                        message,
+                      ), // Renamed _getMesajRengi, mesaj
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // YENİ: Eğer oluşturulan görselin URL'si varsa göster
-                        if (mesaj.imageUrl != null)
+                        // NEW: Show if the generated image URL is available
+                        if (message.imageUrl != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
                               child: Image.network(
-                                mesaj.imageUrl!,
+                                message.imageUrl!,
                                 width: 200,
                                 height: 200,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
                                     const Text(
-                                      'Görsel yüklenemedi.',
+                                      'Image failed to load.', // Translated string literal
                                       style: TextStyle(color: Colors.black),
                                     ),
                               ),
                             ),
                           ),
-                        // Eğer kullanıcının gönderdiği bir görsel yolu varsa
-                        if (mesaj.filePath != null && mesaj.fileType == 'image')
+                        // If user sent a local image path
+                        if (message.filePath != null &&
+                            message.fileType == 'image')
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
                               child: Image.file(
-                                File(mesaj.filePath!),
+                                File(message.filePath!),
                                 width: 200,
                                 height: 200,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
                                     const Text(
-                                      'Görsel yüklenemedi.',
+                                      'Image failed to load.', // Translated string literal
                                       style: TextStyle(color: Colors.black),
                                     ),
                               ),
                             ),
                           ),
-                        // Eğer dosya varsa, dosya adını ve ikonu göster
-                        if (mesaj.filePath != null && mesaj.fileType == 'file')
+                        // If there is a file, show its name and icon
+                        if (message.filePath != null &&
+                            message.fileType == 'file')
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: Row(
@@ -167,13 +190,21 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                                 const SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
-                                    mesaj.metin.contains('[Dosya:') &&
-                                            mesaj.metin.contains(']')
-                                        ? mesaj.metin.substring(
-                                            mesaj.metin.indexOf('[Dosya:') + 8,
-                                            mesaj.metin.indexOf(']'),
+                                    message.text.contains(
+                                              '[Dosya:',
+                                            ) && // Renamed metin, string literal will change
+                                            message.text.contains(
+                                              ']',
+                                            ) // Renamed metin
+                                        ? message.text.substring(
+                                            // Renamed metin
+                                            message.text.indexOf('[Dosya:') +
+                                                8, // Renamed metin, string literal will change
+                                            message.text.indexOf(
+                                              ']',
+                                            ), // Renamed metin
                                           )
-                                        : mesaj.metin,
+                                        : message.text, // Renamed metin
                                     style: const TextStyle(color: Colors.black),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -181,9 +212,9 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                               ],
                             ),
                           ),
-                        if (mesaj.metin.isNotEmpty)
+                        if (message.text.isNotEmpty) // Renamed metin
                           Text(
-                            mesaj.metin,
+                            message.text, // Renamed metin
                             style: const TextStyle(color: Colors.black),
                           ),
                       ],
@@ -199,10 +230,11 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _mesajController,
+                    controller: _messageController, // Renamed _mesajController
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Mesaj yaz...',
+                      hintText:
+                          'Type a message...', // Translated string literal
                       hintStyle: TextStyle(color: Colors.white70),
                       filled: true,
                       fillColor: Colors.grey[800],
@@ -215,13 +247,14 @@ class _SohbetEkraniState extends State<SohbetEkrani> {
                         vertical: 12,
                       ),
                     ),
-                    onSubmitted: (value) => _mesajGonder(),
+                    onSubmitted: (value) =>
+                        _sendMessage(), // Renamed _mesajGonder
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.send, color: Colors.deepPurpleAccent),
-                  onPressed: _mesajGonder,
+                  onPressed: _sendMessage, // Renamed _mesajGonder
                 ),
               ],
             ),

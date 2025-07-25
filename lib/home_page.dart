@@ -1,29 +1,30 @@
 // lib/home_page.dart
-import 'package:chatbot_app/sobet_oturumlari_sayfasi.dart';
+import 'package:chatbot_app/chat_sessions_page.dart'; // Renamed from sobet_oturumlari_sayfasi.dart
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io'; // Platform.isAndroid, Platform.isIOS, File için gerekli
-import 'dart:convert'; // base64Decode için bu satırı ekleyin!
+import 'dart:io'; // Required for File class
+import 'dart:convert'; // Required for base64Decode!
+import 'dart:typed_data'; // Required for Uint8List
 
 // Your custom classes should be imported using package:your_app_name/path_to_file.dart
-import 'package:chatbot_app/API/api_service.dart';
-import 'package:chatbot_app/baslikOlusturucu.dart';
+import 'api_service.dart';
+import 'package:chatbot_app/title_generator.dart'; // Renamed from baslikOlusturucu.dart
 import 'package:chatbot_app/history_manager.dart';
-import 'package:chatbot_app/mesaj.dart';
-import 'package:chatbot_app/sohbet_gecmisi_sayfasi.dart'; // Yorum satırı yapılmış olsa da import kalsın
-import 'package:chatbot_app/SohbetOturumu.dart';
-import 'package:chatbot_app/chat_response.dart'; // Yeni oluşturduğumuz sınıfı import et
+import 'package:chatbot_app/message.dart'; // Renamed from mesaj.dart
+import 'package:chatbot_app/chat_history_page.dart'; // Renamed from sohbet_gecmisi_sayfasi.dart (commented out in original)
+import 'package:chatbot_app/chat_session.dart'; // Renamed from SohbetOturumu.dart
+import 'package:chatbot_app/chat_response.dart'; // New class, already English
 
 final ImagePicker _picker = ImagePicker();
 
 class HomePage extends StatefulWidget {
-  final String? kullaniciAdi;
+  final String? userName; // Renamed from kullaniciAdi
   final String deviceId;
 
-  const HomePage({Key? key, this.kullaniciAdi, required this.deviceId})
+  const HomePage({Key? key, this.userName, required this.deviceId})
     : super(key: key);
 
   @override
@@ -31,20 +32,22 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  SohbetOturumu? _currentSession;
+  ChatSession? _currentSession; // Renamed from SohbetOturumu
   late String _deviceId;
-  late String _username;
+  late String _username; // Renamed from _kullaniciAdi
   bool _isLoading = true;
 
-  final List<Mesaj> _messages = [];
-  final TextEditingController _mesajController = TextEditingController();
+  final List<Message> _messages = []; // Renamed from Mesaj
+  final TextEditingController _messageController =
+      TextEditingController(); // Renamed from _mesajController
   String _selectedModel = 'Chatbot';
   bool _chatStarted = false;
 
   String? _selectedFilePath;
   String? _selectedFileName;
   String? _selectedFileType; // 'image', 'file', null
-  bool _showCloseButton = false; // Kapatma butonu görünürlüğü için durum
+  Uint8List? _selectedFileBytes; // Selected file's bytes
+  bool _showCloseButton = false; // For close button visibility
 
   bool _isChatInitialized = false;
 
@@ -81,15 +84,16 @@ class _HomePageState extends State<HomePage> {
       _deviceId = 'unknown_device_${DateTime.now().millisecondsSinceEpoch}';
     }
 
-    _username = widget.kullaniciAdi ?? 'user_${_deviceId.substring(0, 8)}';
+    _username = widget.userName ?? 'user_${_deviceId.substring(0, 8)}';
 
-    _currentSession = await HistoryManager.getOturumByDeviceId(_deviceId);
+    _currentSession = await HistoryManager.getSessionByDeviceId(_deviceId);
 
     if (_currentSession == null) {
-      _currentSession = SohbetOturumu(
+      _currentSession = ChatSession(
+        // Renamed SohbetOturumu
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        baslik: '',
-        mesajlar: [],
+        title: '', // Renamed from baslik
+        messages: [], // Renamed from mesajlar
         deviceId: _deviceId,
         model: _selectedModel,
       );
@@ -100,10 +104,11 @@ class _HomePageState extends State<HomePage> {
       });
     }
 
-    if (_currentSession!.mesajlar.isNotEmpty) {
+    if (_currentSession!.messages.isNotEmpty) {
+      // Renamed messages
       setState(() {
         _messages.clear();
-        _messages.addAll(_currentSession!.mesajlar);
+        _messages.addAll(_currentSession!.messages); // Renamed messages
         _chatStarted = true;
       });
     }
@@ -113,12 +118,14 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Color getMesajRengi(Mesaj mesaj) {
-    if (mesaj.kullanici) {
+  Color getMessageColor(Message message) {
+    // Renamed getMesajRengi, Mesaj
+    if (message.isUser) {
+      // Renamed kullanici to isUser
       return Colors.grey.shade800;
     }
 
-    final model = mesaj.model; // model artık nullable değil
+    final model = message.model;
     switch (model) {
       case 'Gemini':
         return Colors.blue;
@@ -147,29 +154,33 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void modelDegistir(String yeniModel) async {
-    if (_currentSession != null && _currentSession!.mesajlar.isNotEmpty) {
+  void changeModel(String newModel) async {
+    // Renamed modelDegistir
+    if (_currentSession != null && _currentSession!.messages.isNotEmpty) {
+      // Renamed messages
       _currentSession!.model = _selectedModel;
       await HistoryManager.saveSession(_currentSession!);
     }
 
-    _currentSession = SohbetOturumu(
+    _currentSession = ChatSession(
+      // Renamed SohbetOturumu
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      baslik: '',
-      mesajlar: [],
+      title: '', // Renamed baslik
+      messages: [], // Renamed mesajlar
       deviceId: _deviceId,
-      model: yeniModel,
+      model: newModel,
     );
     await HistoryManager.saveSession(_currentSession!);
 
     setState(() {
-      _selectedModel = yeniModel;
+      _selectedModel = newModel;
       _messages.clear();
       _chatStarted = false;
     });
   }
 
-  Color mesajRengi() {
+  Color messageColor() {
+    // Renamed mesajRengi
     switch (_selectedModel) {
       case 'ChatGPT':
         return Colors.pink;
@@ -183,24 +194,25 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget _modelSecimCard(String modelAdi, IconData ikon, Color renk) {
+  Widget _modelSelectionCard(String modelName, IconData icon, Color color) {
+    // Renamed _modelSecimCard, modelAdi, ikon, renk
     return GestureDetector(
       onTap: () {
-        modelDegistir(modelAdi);
+        changeModel(modelName); // Renamed modelDegistir
         Navigator.pop(context);
       },
       child: Card(
-        color: renk.withOpacity(0.2),
+        color: color.withOpacity(0.2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 4,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           child: Row(
             children: [
-              Icon(ikon, color: renk, size: 28),
+              Icon(icon, color: color, size: 28),
               const SizedBox(width: 16),
               Text(
-                modelAdi,
+                modelName,
                 style: const TextStyle(fontSize: 18, color: Colors.white),
               ),
             ],
@@ -210,9 +222,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // GÜNCEL: mesajGonderVeGetir metodu - Hem metin hem görsel yanıtlarını işleyebilir
-  void mesajGonderVeGetir(String mesaj) async {
-    if (mesaj.trim().isEmpty && _selectedFilePath == null) return;
+  // UPDATED: sendMessageAndGetResponse method - Can process both text and image responses
+  void sendMessageAndGetResponse(String message) async {
+    // Renamed mesajGonderVeGetir, mesaj
+    if (message.trim().isEmpty && _selectedFilePath == null) return;
 
     if (!_chatStarted) {
       setState(() {
@@ -220,22 +233,52 @@ class _HomePageState extends State<HomePage> {
       });
     }
 
-    String gonderilecekMetin = mesaj.trim();
-    String? gonderilecekFilePath = _selectedFilePath;
-    String? gonderilecekFileType = _selectedFileType;
+    String textToSend = message.trim(); // Renamed gonderilecekMetin
+    String? filePathToSend = _selectedFilePath; // Renamed gonderilecekFilePath
+    String? fileTypeToSend = _selectedFileType; // Renamed gonderilecekFileType
+    String? base64ImageData; // New: Base64 image data
 
-    if (gonderilecekFilePath != null) {
-      if (gonderilecekFileType == 'file' && gonderilecekMetin.isEmpty) {
-        gonderilecekMetin = '[Dosya: ${_selectedFileName ?? 'Seçili Dosya'}]';
+    // If an image file is selected, convert it to Base64
+    if (filePathToSend != null && fileTypeToSend == 'image') {
+      try {
+        if (kIsWeb && _selectedFileBytes != null) {
+          // For web, use bytes directly from memory
+          base64ImageData = base64Encode(_selectedFileBytes!);
+          debugPrint(
+            'Selected image (Web) converted to Base64. Length: ${base64ImageData.length}',
+          );
+        } else if (!kIsWeb) {
+          // For Mobile/Desktop, read from file
+          final file = File(filePathToSend);
+          final bytes = await file.readAsBytes();
+          base64ImageData = base64Encode(bytes);
+          debugPrint(
+            'Selected image (Mobile/Desktop) converted to Base64. Length: ${base64ImageData.length}',
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          'Error converting image to Base64: $e',
+        ); // Renamed error message
+        // If error, don't try to send the image
+        base64ImageData = null;
       }
     }
 
-    final userMessage = Mesaj(
-      kullanici: true,
-      metin: gonderilecekMetin,
+    if (filePathToSend != null) {
+      if (fileTypeToSend == 'file' && textToSend.isEmpty) {
+        textToSend =
+            '[Dosya: ${_selectedFileName ?? 'Seçili Dosya'}]'; // Kept Turkish
+      }
+    }
+
+    final userMessage = Message(
+      // Renamed Mesaj
+      isUser: true, // Renamed kullanici to isUser
+      text: textToSend, // Renamed metin to text
       model: _selectedModel,
-      filePath: gonderilecekFilePath,
-      fileType: gonderilecekFileType,
+      filePath: filePathToSend,
+      fileType: fileTypeToSend,
     );
 
     setState(() {
@@ -243,40 +286,47 @@ class _HomePageState extends State<HomePage> {
       _selectedFileName = null;
       _selectedFilePath = null;
       _selectedFileType = null;
-      _showCloseButton = false; // Mesaj gönderildiğinde X butonunu gizle
+      _selectedFileBytes = null; // Clear selected bytes too
+      _showCloseButton = false; // Hide X button when message is sent
     });
 
-    _mesajController.clear();
+    _messageController.clear(); // Renamed _mesajController
 
     if (_currentSession != null &&
-        _currentSession!.baslik.isEmpty &&
-        userMessage.metin.isNotEmpty) {
-      _currentSession!.baslik = BaslikOlusturucu.olustur(userMessage.metin);
+        _currentSession!.title.isEmpty && // Renamed baslik to title
+        userMessage.text.isNotEmpty) {
+      // Renamed text
+      _currentSession!.title = TitleGenerator.generate(
+        userMessage.text,
+      ); // Renamed BaslikOlusturucu.olustur
       await HistoryManager.updateSession(_currentSession!);
     } else if (_currentSession != null &&
-        _currentSession!.baslik.isEmpty &&
+        _currentSession!.title.isEmpty && // Renamed baslik to title
         userMessage.filePath != null) {
-      _currentSession!.baslik = userMessage.fileType == 'image'
-          ? 'Resimli Sohbet'
-          : 'Dosyalı Sohbet';
+      _currentSession!.title = userMessage.fileType == 'image'
+          ? 'Resimli Sohbet' // Kept Turkish
+          : 'Dosyalı Sohbet'; // Kept Turkish
       await HistoryManager.updateSession(_currentSession!);
     }
 
     await HistoryManager.addMessage(userMessage, _currentSession!.id);
 
     try {
-      // API'den ChatResponse objesi alıyoruz
-      final ChatResponse apiResponse = await ApiService.mesajGonder(
-        gonderilecekMetin,
+      // Get ChatResponse object from API
+      final ChatResponse apiResponse = await ApiService.sendMessage(
+        // Renamed ApiService.mesajGonder
+        textToSend,
         model: _selectedModel,
         deviceId: _deviceId,
+        base64Image: base64ImageData, // Send Base64 image data
       );
 
-      // Metin yanıtı varsa ekle
+      // Add text response if available
       if (apiResponse.replyText != null && apiResponse.replyText!.isNotEmpty) {
-        final botMessage = Mesaj(
-          metin: apiResponse.replyText!,
-          kullanici: false,
+        final botMessage = Message(
+          // Renamed Mesaj
+          text: apiResponse.replyText!, // Renamed text
+          isUser: false, // Renamed isUser
           model: _selectedModel,
         );
         setState(() {
@@ -285,64 +335,69 @@ class _HomePageState extends State<HomePage> {
         await HistoryManager.addMessage(botMessage, _currentSession!.id);
       }
 
-      // Base64 görseli varsa ekle
+      // Add Base64 image if available
       if (apiResponse.base64Image != null &&
           apiResponse.base64Image!.isNotEmpty) {
         debugPrint(
-          'Base64 görsel verisi alındı. Uzunluk: ${apiResponse.base64Image!.length}',
+          'Base64 image data received. Length: ${apiResponse.base64Image!.length}',
         );
-        final botImageMessage = Mesaj(
-          kullanici: false,
-          metin: 'İşte oluşturduğum görsel:', // Görsel için açıklama
+        final botImageMessage = Message(
+          // Renamed Mesaj
+          isUser: false, // Renamed isUser
+          text: 'İşte oluşturduğum görsel:', // Kept Turkish
           model: _selectedModel,
           base64Image:
-              apiResponse.base64Image!, // Base64 görseli Mesaj objesine kaydet
+              apiResponse.base64Image!, // Save Base64 image to Message object
         );
         setState(() {
           _messages.add(botImageMessage);
         });
         await HistoryManager.addMessage(botImageMessage, _currentSession!.id);
       } else {
-        debugPrint('Base64 görsel verisi API yanıtında bulunamadı veya boş.');
+        debugPrint('Base64 image data not found or empty in API response.');
       }
 
-      // Eğer hem metin hem de görsel yoksa, bir hata mesajı göster
+      // If neither text nor image is received, show an error message
       if (apiResponse.replyText == null && apiResponse.base64Image == null) {
         setState(() {
           _messages.add(
-            Mesaj(
-              metin: 'Sunucudan geçerli bir yanıt alınamadı.',
-              kullanici: false,
+            Message(
+              // Renamed Mesaj
+              text: 'Sunucudan geçerli bir yanıt alınamadı.', // Kept Turkish
+              isUser: false, // Renamed isUser
               model: _selectedModel,
             ),
           );
         });
         await HistoryManager.addMessage(
-          Mesaj(
-            metin: 'Sunucudan geçerli bir yanıt alınamadı.',
-            kullanici: false,
+          Message(
+            // Renamed Mesaj
+            text: 'Sunucudan geçerli bir yanıt alınamadı.', // Kept Turkish
+            isUser: false, // Renamed isUser
             model: _selectedModel,
           ),
           _currentSession!.id,
         );
       }
     } catch (e) {
-      debugPrint(
-        'Mesaj gönderme sırasında hata: $e',
-      ); // Hata detaylarını konsola yazdır
+      debugPrint('Error sending message: $e'); // Print error details to console
       setState(() {
         _messages.add(
-          Mesaj(
-            metin: 'Sunucuya bağlanılamadı veya bir hata oluştu: $e',
-            kullanici: false,
+          Message(
+            // Renamed Mesaj
+            text:
+                'Sunucuya bağlanılamadı veya bir hata oluştu: $e', // Kept Turkish
+            isUser: false, // Renamed isUser
             model: _selectedModel,
           ),
         );
       });
       await HistoryManager.addMessage(
-        Mesaj(
-          metin: 'Sunucuya bağlanılamadı veya bir hata oluştu: $e',
-          kullanici: false,
+        Message(
+          // Renamed Mesaj
+          text:
+              'Sunucuya bağlanılamadı veya bir hata oluştu: $e', // Kept Turkish
+          isUser: false, // Renamed isUser
           model: _selectedModel,
         ),
         _currentSession!.id,
@@ -350,43 +405,69 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void kameraIleCek() async {
-    final XFile? foto = await _picker.pickImage(source: ImageSource.camera);
-    if (foto != null) {
+  void pickImageFromCamera() async {
+    // Renamed kameraIleCek
+    final XFile? photo = await _picker.pickImage(
+      source: ImageSource.camera,
+    ); // Renamed foto
+    if (photo != null) {
       setState(() {
-        _selectedFilePath = foto.path;
-        _selectedFileName = foto.name;
+        _selectedFilePath = photo.path;
+        _selectedFileName = photo.name;
         _selectedFileType = 'image';
+        if (kIsWeb) {
+          // For web, get bytes directly from XFile and use for preview
+          photo.readAsBytes().then((bytes) {
+            setState(() {
+              _selectedFileBytes = bytes;
+            });
+          });
+        }
       });
     }
   }
 
-  void galeridenSec() async {
-    final XFile? foto = await _picker.pickImage(source: ImageSource.gallery);
-    if (foto != null) {
+  void pickImageFromGallery() async {
+    // Renamed galeridenSec
+    final XFile? photo = await _picker.pickImage(
+      source: ImageSource.gallery,
+    ); // Renamed foto
+    if (photo != null) {
       setState(() {
-        _selectedFilePath = foto.path;
-        _selectedFileName = foto.name;
+        _selectedFilePath = photo.path;
+        _selectedFileName = photo.name;
         _selectedFileType = 'image';
+        if (kIsWeb) {
+          // For web, get bytes directly from XFile and use for preview
+          photo.readAsBytes().then((bytes) {
+            setState(() {
+              _selectedFileBytes = bytes;
+            });
+          });
+        }
       });
     }
   }
 
-  void dosyaSec() async {
+  void pickFile() async {
+    // Renamed dosyaSec
     FilePickerResult? result = await FilePicker.platform.pickFiles();
     if (result != null && result.files.single.path != null) {
-      String dosyaAdi = result.files.single.name;
-      String dosyaYolu = result.files.single.path!;
+      String fileName = result.files.single.name; // Renamed dosyaAdi
+      String filePath = result.files.single.path!; // Renamed dosyaYolu
+      Uint8List? fileBytes = result.files.single.bytes; // For web, bytes
 
       setState(() {
-        _selectedFilePath = dosyaYolu;
-        _selectedFileName = dosyaAdi;
+        _selectedFilePath = filePath;
+        _selectedFileName = fileName;
         _selectedFileType = 'file';
+        _selectedFileBytes = fileBytes; // Save bytes for web
       });
     }
   }
 
-  void _dosyaSecimDialog() {
+  void _showFileSelectionDialog() {
+    // Renamed _dosyaSecimDialog
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey,
@@ -403,16 +484,19 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildActionColumn(Icons.image, 'Galeri', () {
+                    // Kept Turkish
                     Navigator.pop(context);
-                    galeridenSec();
+                    pickImageFromGallery(); // Renamed galeridenSec
                   }),
                   _buildActionColumn(Icons.camera_alt, 'Kamera', () {
+                    // Kept Turkish
                     Navigator.pop(context);
-                    kameraIleCek();
+                    pickImageFromCamera(); // Renamed kameraIleCek
                   }),
                   _buildActionColumn(Icons.insert_drive_file, 'Dosya', () {
+                    // Kept Turkish
                     Navigator.pop(context);
-                    dosyaSec();
+                    pickFile(); // Renamed dosyaSec
                   }),
                 ],
               ),
@@ -454,31 +538,32 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _chip(String yazi) {
+  Widget _suggestionChip(String text) {
+    // Renamed _chip, yazi
     return ActionChip(
-      label: Text(yazi),
-      backgroundColor: mesajRengi().withOpacity(0.7),
+      label: Text(text), // Renamed yazi
+      backgroundColor: messageColor().withOpacity(0.7),
       labelStyle: const TextStyle(
         color: Colors.white,
-        fontSize: 14, // Yazı boyutunu belirginleştirdim
+        fontSize: 14, // Set font size
         height:
-            0.9, // Bu değeri (örn: 0.8, 0.9, 1.0) deneyerek yazıyı dikeyde ortalamaya çalışın
+            0.9, // Try this value (e.g., 0.8, 0.9, 1.0) to vertically center the text
         leadingDistribution: TextLeadingDistribution
-            .even, // Satır boşluğunu üste ve alta eşit dağıt
+            .even, // Distribute line spacing evenly top and bottom
       ),
-      onPressed: () => mesajGonderVeGetir(yazi),
+      onPressed: () => sendMessageAndGetResponse(text),
       padding: const EdgeInsets.symmetric(
         horizontal: 12.0,
         vertical: 8.0,
-      ), // ActionChip'in genel padding'ini de biraz ayarladım
+      ), // Adjusted ActionChip's general padding a bit
     );
   }
 
-  // GÜNCEL: Görsel oluşturma metodu - Artık doğrudan mesajGonderVeGetir'i çağırıyor
+  // UPDATED: Image generation method - Now directly calls sendMessageAndGetResponse
   void _generateImageFromPrompt(String prompt) async {
-    // Görsel oluşturma isteğini doğrudan mesajGonderVeGetir metoduna iletiyoruz.
-    // Backend, bu prompt'u algılayıp görsel döndürmelidir.
-    mesajGonderVeGetir('Görsel oluştur: "$prompt"');
+    // We send the image generation request directly to the sendMessageAndGetResponse method.
+    // The backend should detect this prompt and return an image.
+    sendMessageAndGetResponse('Görsel oluştur: "$prompt"'); // Kept Turkish
   }
 
   @override
@@ -486,7 +571,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: mesajRengi(),
+        backgroundColor: messageColor(),
         elevation: 0,
         leadingWidth: 80,
         leading: Padding(
@@ -512,25 +597,29 @@ class _HomePageState extends State<HomePage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _modelSecimCard(
+                        _modelSelectionCard(
                           "Chatbot",
                           Icons.smart_toy,
                           Colors.deepPurple,
                         ),
                         const SizedBox(height: 10),
-                        _modelSecimCard(
+                        _modelSelectionCard(
                           "ChatGPT",
                           Icons.chat_bubble_outline,
                           Colors.pink,
                         ),
                         const SizedBox(height: 10),
-                        _modelSecimCard(
+                        _modelSelectionCard(
                           "Gemini",
                           Icons.auto_awesome,
                           Colors.blue,
                         ),
                         const SizedBox(height: 10),
-                        _modelSecimCard("DeepSeek", Icons.search, Colors.amber),
+                        _modelSelectionCard(
+                          "DeepSeek",
+                          Icons.search,
+                          Colors.amber,
+                        ),
                       ],
                     ),
                   );
@@ -579,15 +668,16 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const SohbetOturumlariSayfasi(),
+                  builder: (context) =>
+                      const ChatSessionsPage(), // Renamed SohbetOturumlariSayfasi
                 ),
               ).then((_) {
                 _initializeChat();
               });
             },
-            tooltip: 'Sohbet Oturumları',
+            tooltip: 'Sohbet Oturumları', // Kept Turkish
           ),
-          /* YORUM SATIRI YAPILDI: Sohbet Geçmişi butonu kaldırıldı.
+          /* COMMENTED OUT: Chat History button removed.
           IconButton(
             icon: const Icon(Icons.history, color: Colors.white),
             onPressed: () {
@@ -595,19 +685,19 @@ class _HomePageState extends State<HomePage> {
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      SohbetGecmisiSayfasi(deviceId: _deviceId),
+                      ChatHistoryPage(deviceId: _deviceId), // Renamed SohbetGecmisiSayfasi
                 ),
               ).then((_) {
                 _initializeChat();
               });
             },
-            tooltip: 'Bu Sohbetin Geçmişi',
+            tooltip: 'Bu Sohbetin Geçmişi', // Kept Turkish
           ),
           */
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: mesajRengi()))
+          ? Center(child: CircularProgressIndicator(color: messageColor()))
           : GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
               child: Column(
@@ -617,10 +707,10 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.all(16),
                       itemCount: _messages.length,
                       itemBuilder: (context, index) {
-                        final mesaj = _messages[index];
+                        final message = _messages[index];
 
                         return Align(
-                          alignment: mesaj.kullanici
+                          alignment: message.isUser
                               ? Alignment.centerRight
                               : Alignment.centerLeft,
                           child: Container(
@@ -628,31 +718,31 @@ class _HomePageState extends State<HomePage> {
                             padding: const EdgeInsets.all(12),
                             constraints: const BoxConstraints(maxWidth: 280),
                             decoration: BoxDecoration(
-                              color: getMesajRengi(mesaj),
+                              color: getMessageColor(message),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Base64 görseli varsa göster
-                                if (mesaj.base64Image != null &&
-                                    mesaj.base64Image!.isNotEmpty)
+                                // Show Base64 image if available
+                                if (message.base64Image != null &&
+                                    message.base64Image!.isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
                                       child: Image.memory(
-                                        // Düzeltme: Backend'den ön ek gelmediği için .split(',').last kaldırıldı.
-                                        base64Decode(mesaj.base64Image!),
+                                        // Fix: .split(',').last removed as prefix is not expected from backend.
+                                        base64Decode(message.base64Image!),
                                         width: 200,
                                         height: 200,
                                         fit: BoxFit.cover,
                                         errorBuilder: (context, error, stackTrace) {
                                           debugPrint(
-                                            'Base64 görsel yüklenemedi: $error',
+                                            'Failed to load Base64 image: $error',
                                           );
                                           return const Text(
-                                            'Görsel yüklenemedi (Base64).',
+                                            'Görsel yüklenemedi (Base64).', // Kept Turkish
                                             style: TextStyle(
                                               color: Colors.white,
                                             ),
@@ -661,74 +751,72 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                     ),
                                   ),
-                                // Eğer harici URL varsa göster (mevcut kodunuz)
-                                // Not: Backend'iniz base64 döndürdüğü için bu kısım şu an için kullanılmayabilir.
-                                if (mesaj.imageUrl != null)
+                                // Show external URL if available (current code)
+                                // Note: This part might not be used currently as your backend returns base64.
+                                if (message.imageUrl != null)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
                                       child: Image.network(
-                                        mesaj.imageUrl!,
+                                        message.imageUrl!,
                                         width: 200,
                                         height: 200,
                                         fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                              debugPrint(
-                                                'URL görsel yüklenemedi: $error',
-                                              );
-                                              return const Text(
-                                                'Görsel yüklenemedi (URL).',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                ),
-                                              );
-                                            },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          debugPrint(
+                                            'Failed to load URL image: $error',
+                                          );
+                                          return const Text(
+                                            'Görsel yüklenemedi (URL).', // Kept Turkish
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ),
                                   ),
-                                // Eğer kullanıcının gönderdiği bir görsel yolu varsa
-                                if (mesaj.filePath != null &&
-                                    mesaj.fileType == 'image')
+                                // If user sent a local image path
+                                if (message.filePath != null &&
+                                    message.fileType == 'image')
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
                                       child:
-                                          kIsWeb // Web'de mi çalışıyoruz kontrolü
-                                          ? Image.network(
-                                              // Web için Image.network kullan
-                                              mesaj.filePath!,
-                                              width: 200,
-                                              height: 200,
-                                              fit: BoxFit.cover,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    debugPrint(
-                                                      'Yerel görsel yüklenemedi (Web): $error',
-                                                    );
-                                                    return const Text(
-                                                      'Görsel yüklenemedi.',
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                      ),
-                                                    );
-                                                  },
-                                            )
+                                          kIsWeb &&
+                                              message.filePath!.startsWith(
+                                                'blob:',
+                                              ) // If web and it's a blob URL, try MemoryImage
+                                          ? (_selectedFileBytes !=
+                                                    null // If bytes are still in memory
+                                                ? Image.memory(
+                                                    _selectedFileBytes!,
+                                                    width: 200,
+                                                    height: 200,
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : Image.network(
+                                                    // Otherwise, try NetworkImage (for blob URLs)
+                                                    message.filePath!,
+                                                    width: 200,
+                                                    height: 200,
+                                                    fit: BoxFit.cover,
+                                                  ))
                                           : Image.file(
-                                              // Diğer platformlar için Image.file kullan
-                                              File(mesaj.filePath!),
+                                              // For other platforms (and web if not blob), use Image.file (might need adjustment for web to NetworkImage if _selectedFileBytes is not retained in Mesaj)
+                                              File(message.filePath!),
                                               width: 200,
                                               height: 200,
                                               fit: BoxFit.cover,
                                               errorBuilder:
                                                   (context, error, stackTrace) {
                                                     debugPrint(
-                                                      'Yerel görsel yüklenemedi (Mobil): $error',
+                                                      'Failed to load local image (Mobile/Desktop): $error',
                                                     );
                                                     return const Text(
-                                                      'Görsel yüklenemedi.',
+                                                      'Görsel yüklenemedi.', // Kept Turkish
                                                       style: TextStyle(
                                                         color: Colors.white,
                                                       ),
@@ -737,9 +825,9 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                     ),
                                   ),
-                                // Eğer dosya varsa, dosya adını ve ikonu göster
-                                if (mesaj.filePath != null &&
-                                    mesaj.fileType == 'file')
+                                // If it's a file, show file name and icon
+                                if (message.filePath != null &&
+                                    message.fileType == 'file')
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
                                     child: Row(
@@ -753,16 +841,18 @@ class _HomePageState extends State<HomePage> {
                                         const SizedBox(width: 8),
                                         Flexible(
                                           child: Text(
-                                            mesaj.metin.contains('[Dosya:') &&
-                                                    mesaj.metin.contains(']')
-                                                ? mesaj.metin.substring(
-                                                    mesaj.metin.indexOf(
-                                                          '[Dosya:',
+                                            message.text.contains(
+                                                      '[Dosya:',
+                                                    ) && // Kept Turkish
+                                                    message.text.contains(']')
+                                                ? message.text.substring(
+                                                    message.text.indexOf(
+                                                          '[Dosya:', // Kept Turkish
                                                         ) +
                                                         8,
-                                                    mesaj.metin.indexOf(']'),
+                                                    message.text.indexOf(']'),
                                                   )
-                                                : mesaj.metin,
+                                                : message.text,
                                             style: const TextStyle(
                                               color: Colors.white,
                                             ),
@@ -772,9 +862,9 @@ class _HomePageState extends State<HomePage> {
                                       ],
                                     ),
                                   ),
-                                if (mesaj.metin.isNotEmpty)
+                                if (message.text.isNotEmpty)
                                   Text(
-                                    mesaj.metin,
+                                    message.text,
                                     style: const TextStyle(color: Colors.white),
                                   ),
                               ],
@@ -795,26 +885,28 @@ class _HomePageState extends State<HomePage> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            _chip("Bana çalışma ipuçları ver"),
+                            _suggestionChip(
+                              "Bana çalışma ipuçları ver",
+                            ), // Kept Turkish
                             const SizedBox(width: 8),
-                            _chip("Bana tavsiye ver"),
+                            _suggestionChip("Bana tavsiye ver"), // Kept Turkish
                             const SizedBox(width: 8),
-                            _chip("Bir şey öner"),
+                            _suggestionChip("Bir şey öner"), // Kept Turkish
                           ],
                         ),
                       ),
                     ),
-                  // Seçilen dosya için önizleme alanı (mesaj giriş kutusunun üstünde)
+                  // Preview area for selected file (above message input box)
                   if (_selectedFilePath != null)
                     Align(
-                      // Sol köşeye hizalamak için Align eklendi
+                      // Aligned to the left
                       alignment: Alignment.centerLeft,
                       child: Container(
                         margin: const EdgeInsets.only(
                           left: 16,
                           top: 4,
                           bottom: 4,
-                        ), // Sadece soldan boşluk bırakıldı
+                        ), // Left padding only
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.grey[800],
@@ -824,41 +916,47 @@ class _HomePageState extends State<HomePage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             GestureDetector(
-                              // Önizleme alanını tıklanabilir yapmak için
+                              // Make preview area clickable
                               onTap: () {
                                 setState(() {
                                   _showCloseButton =
-                                      !_showCloseButton; // X butonunun görünürlüğünü aç/kapa
+                                      !_showCloseButton; // Toggle X button visibility
                                 });
                               },
                               child: Stack(
                                 clipBehavior:
-                                    Clip.none, // Butonun taşmasına izin verir
+                                    Clip.none, // Allows button to overflow
                                 children: [
-                                  // Önizleme içeriği (görsel veya dosya ikonu)
+                                  // Preview content (image or file icon)
                                   if (_selectedFileType == 'image')
                                     Container(
-                                      width: 80, // Boyutu büyütüldü
-                                      height: 80, // Boyutu büyütüldü
+                                      width: 80, // Size increased
+                                      height: 80, // Size increased
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
                                         image: DecorationImage(
                                           image:
-                                              kIsWeb // Web'de mi çalışıyoruz kontrolü
-                                              ? NetworkImage(_selectedFilePath!)
-                                                    as ImageProvider // Web için NetworkImage kullan
-                                              : FileImage(
-                                                      File(_selectedFilePath!),
-                                                    )
-                                                    as ImageProvider, // Diğer platformlar için FileImage kullan
+                                              kIsWeb &&
+                                                  _selectedFileBytes !=
+                                                      null // For web and if bytes are available, use MemoryImage
+                                              ? MemoryImage(_selectedFileBytes!)
+                                              : (kIsWeb // If web but no bytes, or NetworkImage needed for URL
+                                                    ? NetworkImage(
+                                                        _selectedFilePath!,
+                                                      )
+                                                    : FileImage(
+                                                        File(
+                                                          _selectedFilePath!,
+                                                        ),
+                                                      )), // For other platforms, use FileImage
                                           fit: BoxFit.cover,
                                         ),
                                       ),
                                     )
                                   else // _selectedFileType == 'file'
-                                    // Dosya adı ve ikonu için yeni düzenleme
+                                    // New layout for file name and icon
                                     Container(
-                                      width: 120, // Daha geniş bir alan
+                                      width: 120, // Wider area
                                       height: 80,
                                       decoration: BoxDecoration(
                                         color: Colors.grey.shade700,
@@ -878,7 +976,7 @@ class _HomePageState extends State<HomePage> {
                                           Flexible(
                                             child: Text(
                                               _selectedFileName ??
-                                                  'Seçili Dosya',
+                                                  'Seçili Dosya', // Kept Turkish
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 12,
@@ -891,17 +989,16 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                     ),
 
-                                  // Kapatma butonu (sadece _showCloseButton true ise görünür)
+                                  // Close button (visible only if _showCloseButton is true)
                                   if (_showCloseButton)
                                     Positioned(
-                                      top: 5, // Önizleme içinde konumlandırıldı
-                                      right:
-                                          5, // Önizleme içinde konumlandırıldı
+                                      top: 5, // Positioned inside preview
+                                      right: 5, // Positioned inside preview
                                       child: Container(
                                         decoration: BoxDecoration(
                                           color: Colors.black.withOpacity(
                                             0.6,
-                                          ), // Saydam siyah daire arkaplan
+                                          ), // Transparent black circle background
                                           shape: BoxShape.circle,
                                         ),
                                         child: IconButton(
@@ -909,24 +1006,26 @@ class _HomePageState extends State<HomePage> {
                                             Icons.close,
                                             color: Colors.white,
                                             size: 18,
-                                          ), // Daha küçük ikon
+                                          ), // Smaller icon
                                           onPressed: () {
                                             setState(() {
                                               _selectedFilePath = null;
                                               _selectedFileName = null;
                                               _selectedFileType = null;
+                                              _selectedFileBytes =
+                                                  null; // Clear selected bytes too
                                               _showCloseButton =
-                                                  false; // Silindikten sonra X butonunu gizle
+                                                  false; // Hide X button after clearing
                                             });
                                           },
                                           visualDensity: VisualDensity
-                                              .compact, // Butonu daha kompakt yapar
+                                              .compact, // Makes button more compact
                                           padding: EdgeInsets
-                                              .zero, // Fazla padding'i kaldırır
+                                              .zero, // Removes extra padding
                                           constraints: const BoxConstraints(
                                             minWidth: 28,
                                             minHeight: 28,
-                                          ), // Boyut kısıtlaması
+                                          ), // Size constraints
                                         ),
                                       ),
                                     ),
@@ -943,15 +1042,15 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Expanded(
                           child: TextField(
-                            controller: _mesajController,
+                            controller: _messageController,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
-                              hintText: "Mesaj yaz...",
+                              hintText: "Mesaj yaz...", // Kept Turkish
                               hintStyle: TextStyle(
-                                color: mesajRengi().withOpacity(0.7),
+                                color: messageColor().withOpacity(0.7),
                               ),
                               filled: true,
-                              fillColor: mesajRengi().withOpacity(0.15),
+                              fillColor: messageColor().withOpacity(0.15),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(30),
                                 borderSide: BorderSide.none,
@@ -961,38 +1060,39 @@ class _HomePageState extends State<HomePage> {
                                 vertical: 12,
                               ),
                               suffixIcon: Row(
-                                // İkonları yan yana göstermek için Row kullanıldı
+                                // Row used to show icons side by side
                                 mainAxisSize: MainAxisSize
-                                    .min, // Row'u içeriği kadar daralt
+                                    .min, // Shrink Row to its content
                                 children: [
                                   IconButton(
                                     icon: Icon(
                                       Icons.auto_awesome_outlined,
-                                      color: mesajRengi(),
+                                      color: messageColor(),
                                     ),
                                     onPressed: () => _generateImageFromPrompt(
-                                      _mesajController.text,
+                                      _messageController.text,
                                     ),
-                                    tooltip: 'Görsel Oluştur',
+                                    tooltip: 'Görsel Oluştur', // Kept Turkish
                                   ),
                                   IconButton(
                                     icon: Icon(
                                       Icons.attach_file,
-                                      color: mesajRengi(),
+                                      color: messageColor(),
                                     ),
-                                    onPressed: _dosyaSecimDialog,
+                                    onPressed: _showFileSelectionDialog,
                                   ),
                                 ],
                               ),
                             ),
-                            onSubmitted: mesajGonderVeGetir,
+                            onSubmitted: sendMessageAndGetResponse,
                           ),
                         ),
                         const SizedBox(width: 8),
                         IconButton(
-                          icon: Icon(Icons.send, color: mesajRengi()),
-                          onPressed: () =>
-                              mesajGonderVeGetir(_mesajController.text),
+                          icon: Icon(Icons.send, color: messageColor()),
+                          onPressed: () => sendMessageAndGetResponse(
+                            _messageController.text,
+                          ),
                         ),
                       ],
                     ),
