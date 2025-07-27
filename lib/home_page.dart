@@ -1,27 +1,27 @@
 // lib/home_page.dart
-import 'package:chatbot_app/chat_sessions_page.dart'; // Renamed from sobet_oturumlari_sayfasi.dart
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:chatbot_app/chat_sessions_page.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io'; // Required for File class
-import 'dart:convert'; // Required for base64Decode!
-import 'dart:typed_data'; // Required for Uint8List
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 
 // Your custom classes should be imported using package:your_app_name/path_to_file.dart
 import 'api_service.dart';
-import 'package:chatbot_app/title_generator.dart'; // Renamed from baslikOlusturucu.dart
+import 'package:chatbot_app/title_generator.dart';
 import 'package:chatbot_app/history_manager.dart';
-import 'package:chatbot_app/message.dart'; // Renamed from mesaj.dart
-import 'package:chatbot_app/chat_history_page.dart'; // Renamed from sohbet_gecmisi_sayfasi.dart (commented out in original)
-import 'package:chatbot_app/chat_session.dart'; // Renamed from SohbetOturumu.dart
-import 'package:chatbot_app/chat_response.dart'; // New class, already English
+import 'package:chatbot_app/message.dart';
+import 'package:chatbot_app/chat_history_page.dart'; // Keeping this import though commented out in original
+import 'package:chatbot_app/chat_session.dart';
+import 'package:chatbot_app/chat_response.dart';
 
 final ImagePicker _picker = ImagePicker();
 
 class HomePage extends StatefulWidget {
-  final String? userName; // Renamed from kullaniciAdi
+  final String? userName;
   final String deviceId;
 
   const HomePage({Key? key, this.userName, required this.deviceId})
@@ -32,14 +32,13 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  ChatSession? _currentSession; // Renamed from SohbetOturumu
+  ChatSession? _currentSession;
   late String _deviceId;
-  late String _username; // Renamed from _kullaniciAdi
+  late String _username;
   bool _isLoading = true;
 
-  final List<Message> _messages = []; // Renamed from Mesaj
-  final TextEditingController _messageController =
-      TextEditingController(); // Renamed from _mesajController
+  final List<Message> _messages = [];
+  final TextEditingController _messageController = TextEditingController();
   String _selectedModel = 'Chatbot';
   bool _chatStarted = false;
 
@@ -47,7 +46,7 @@ class _HomePageState extends State<HomePage> {
   String? _selectedFileName;
   String? _selectedFileType; // 'image', 'file', null
   Uint8List? _selectedFileBytes; // Selected file's bytes
-  bool _showCloseButton = false; // For close button visibility
+  bool _isCloseButtonVisible = false; // State for close button visibility
 
   bool _isChatInitialized = false;
 
@@ -90,10 +89,9 @@ class _HomePageState extends State<HomePage> {
 
     if (_currentSession == null) {
       _currentSession = ChatSession(
-        // Renamed SohbetOturumu
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: '', // Renamed from baslik
-        messages: [], // Renamed from mesajlar
+        title: '',
+        messages: [],
         deviceId: _deviceId,
         model: _selectedModel,
       );
@@ -105,10 +103,9 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (_currentSession!.messages.isNotEmpty) {
-      // Renamed messages
       setState(() {
         _messages.clear();
-        _messages.addAll(_currentSession!.messages); // Renamed messages
+        _messages.addAll(_currentSession!.messages);
         _chatStarted = true;
       });
     }
@@ -119,9 +116,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Color getMessageColor(Message message) {
-    // Renamed getMesajRengi, Mesaj
     if (message.isUser) {
-      // Renamed kullanici to isUser
       return Colors.grey.shade800;
     }
 
@@ -155,18 +150,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   void changeModel(String newModel) async {
-    // Renamed modelDegistir
     if (_currentSession != null && _currentSession!.messages.isNotEmpty) {
-      // Renamed messages
       _currentSession!.model = _selectedModel;
       await HistoryManager.saveSession(_currentSession!);
     }
 
     _currentSession = ChatSession(
-      // Renamed SohbetOturumu
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: '', // Renamed baslik
-      messages: [], // Renamed mesajlar
+      title: '',
+      messages: [],
       deviceId: _deviceId,
       model: newModel,
     );
@@ -180,7 +172,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Color messageColor() {
-    // Renamed mesajRengi
     switch (_selectedModel) {
       case 'ChatGPT':
         return Colors.pink;
@@ -195,10 +186,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _modelSelectionCard(String modelName, IconData icon, Color color) {
-    // Renamed _modelSecimCard, modelAdi, ikon, renk
     return GestureDetector(
       onTap: () {
-        changeModel(modelName); // Renamed modelDegistir
+        changeModel(modelName);
         Navigator.pop(context);
       },
       child: Card(
@@ -222,9 +212,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // UPDATED: sendMessageAndGetResponse method - Can process both text and image responses
   void sendMessageAndGetResponse(String message) async {
-    // Renamed mesajGonderVeGetir, mesaj
     if (message.trim().isEmpty && _selectedFilePath == null) return;
 
     if (!_chatStarted) {
@@ -233,22 +221,32 @@ class _HomePageState extends State<HomePage> {
       });
     }
 
-    String textToSend = message.trim(); // Renamed gonderilecekMetin
-    String? filePathToSend = _selectedFilePath; // Renamed gonderilecekFilePath
-    String? fileTypeToSend = _selectedFileType; // Renamed gonderilecekFileType
-    String? base64ImageData; // New: Base64 image data
+    String textToSend = message.trim();
+    String? filePathToSend = _selectedFilePath;
+    String? fileTypeToSend = _selectedFileType;
+    String? base64ImageData;
+    bool isImageGenerationPrompt = false;
+    String imageGenerationPrompt = '';
+
+    const String imagePromptPrefix = 'Görsel oluştur:';
+    if (textToSend.toLowerCase().startsWith(imagePromptPrefix.toLowerCase())) {
+      imageGenerationPrompt = textToSend
+          .substring(imagePromptPrefix.length)
+          .trim();
+      isImageGenerationPrompt = true;
+      textToSend =
+          ''; // Clear the text message as it's an image generation command
+    }
 
     // If an image file is selected, convert it to Base64
     if (filePathToSend != null && fileTypeToSend == 'image') {
       try {
         if (kIsWeb && _selectedFileBytes != null) {
-          // For web, use bytes directly from memory
           base64ImageData = base64Encode(_selectedFileBytes!);
           debugPrint(
             'Selected image (Web) converted to Base64. Length: ${base64ImageData.length}',
           );
         } else if (!kIsWeb) {
-          // For Mobile/Desktop, read from file
           final file = File(filePathToSend);
           final bytes = await file.readAsBytes();
           base64ImageData = base64Encode(bytes);
@@ -257,25 +255,22 @@ class _HomePageState extends State<HomePage> {
           );
         }
       } catch (e) {
-        debugPrint(
-          'Error converting image to Base64: $e',
-        ); // Renamed error message
-        // If error, don't try to send the image
+        debugPrint('Error converting image to Base64: $e');
         base64ImageData = null;
       }
     }
 
     if (filePathToSend != null) {
       if (fileTypeToSend == 'file' && textToSend.isEmpty) {
-        textToSend =
-            '[Dosya: ${_selectedFileName ?? 'Seçili Dosya'}]'; // Kept Turkish
+        textToSend = '[Dosya: ${_selectedFileName ?? 'Seçili Dosya'}]';
       }
     }
 
     final userMessage = Message(
-      // Renamed Mesaj
-      isUser: true, // Renamed kullanici to isUser
-      text: textToSend, // Renamed metin to text
+      isUser: true,
+      text: isImageGenerationPrompt
+          ? 'Görsel oluşturma isteği: "$imageGenerationPrompt"'
+          : textToSend,
       model: _selectedModel,
       filePath: filePathToSend,
       fileType: fileTypeToSend,
@@ -287,46 +282,49 @@ class _HomePageState extends State<HomePage> {
       _selectedFilePath = null;
       _selectedFileType = null;
       _selectedFileBytes = null; // Clear selected bytes too
-      _showCloseButton = false; // Hide X button when message is sent
+      _isCloseButtonVisible = false; // Reset close button visibility on send
     });
 
-    _messageController.clear(); // Renamed _mesajController
+    _messageController.clear();
 
     if (_currentSession != null &&
-        _currentSession!.title.isEmpty && // Renamed baslik to title
+        _currentSession!.title.isEmpty &&
         userMessage.text.isNotEmpty) {
-      // Renamed text
-      _currentSession!.title = TitleGenerator.generate(
-        userMessage.text,
-      ); // Renamed BaslikOlusturucu.olustur
+      _currentSession!.title = TitleGenerator.generate(userMessage.text);
       await HistoryManager.updateSession(_currentSession!);
     } else if (_currentSession != null &&
-        _currentSession!.title.isEmpty && // Renamed baslik to title
+        _currentSession!.title.isEmpty &&
         userMessage.filePath != null) {
       _currentSession!.title = userMessage.fileType == 'image'
-          ? 'Resimli Sohbet' // Kept Turkish
-          : 'Dosyalı Sohbet'; // Kept Turkish
+          ? 'Resimli Sohbet'
+          : 'Dosyalı Sohbet';
       await HistoryManager.updateSession(_currentSession!);
     }
 
     await HistoryManager.addMessage(userMessage, _currentSession!.id);
 
     try {
-      // Get ChatResponse object from API
-      final ChatResponse apiResponse = await ApiService.sendMessage(
-        // Renamed ApiService.mesajGonder
-        textToSend,
-        model: _selectedModel,
-        deviceId: _deviceId,
-        base64Image: base64ImageData, // Send Base64 image data
-      );
+      final ChatResponse apiResponse;
+      if (isImageGenerationPrompt) {
+        apiResponse = await ApiService.sendMessage(
+          imageGenerationPrompt,
+          model: _selectedModel,
+          deviceId: _deviceId,
+          isImageGeneration: true,
+        );
+      } else {
+        apiResponse = await ApiService.sendMessage(
+          textToSend,
+          model: _selectedModel,
+          deviceId: _deviceId,
+          base64Image: base64ImageData,
+        );
+      }
 
-      // Add text response if available
       if (apiResponse.replyText != null && apiResponse.replyText!.isNotEmpty) {
         final botMessage = Message(
-          // Renamed Mesaj
-          text: apiResponse.replyText!, // Renamed text
-          isUser: false, // Renamed isUser
+          text: apiResponse.replyText!,
+          isUser: false,
           model: _selectedModel,
         );
         setState(() {
@@ -335,19 +333,16 @@ class _HomePageState extends State<HomePage> {
         await HistoryManager.addMessage(botMessage, _currentSession!.id);
       }
 
-      // Add Base64 image if available
       if (apiResponse.base64Image != null &&
           apiResponse.base64Image!.isNotEmpty) {
         debugPrint(
           'Base64 image data received. Length: ${apiResponse.base64Image!.length}',
         );
         final botImageMessage = Message(
-          // Renamed Mesaj
-          isUser: false, // Renamed isUser
-          text: 'İşte oluşturduğum görsel:', // Kept Turkish
+          isUser: false,
+          text: 'İşte oluşturduğum görsel:',
           model: _selectedModel,
-          base64Image:
-              apiResponse.base64Image!, // Save Base64 image to Message object
+          base64Image: apiResponse.base64Image!,
         );
         setState(() {
           _messages.add(botImageMessage);
@@ -357,47 +352,40 @@ class _HomePageState extends State<HomePage> {
         debugPrint('Base64 image data not found or empty in API response.');
       }
 
-      // If neither text nor image is received, show an error message
       if (apiResponse.replyText == null && apiResponse.base64Image == null) {
         setState(() {
           _messages.add(
             Message(
-              // Renamed Mesaj
-              text: 'Sunucudan geçerli bir yanıt alınamadı.', // Kept Turkish
-              isUser: false, // Renamed isUser
+              text: 'Sunucudan geçerli bir yanıt alınamadı.',
+              isUser: false,
               model: _selectedModel,
             ),
           );
         });
         await HistoryManager.addMessage(
           Message(
-            // Renamed Mesaj
-            text: 'Sunucudan geçerli bir yanıt alınamadı.', // Kept Turkish
-            isUser: false, // Renamed isUser
+            text: 'Sunucudan geçerli bir yanıt alınamadı.',
+            isUser: false,
             model: _selectedModel,
           ),
           _currentSession!.id,
         );
       }
     } catch (e) {
-      debugPrint('Error sending message: $e'); // Print error details to console
+      debugPrint('Error sending message: $e');
       setState(() {
         _messages.add(
           Message(
-            // Renamed Mesaj
-            text:
-                'Sunucuya bağlanılamadı veya bir hata oluştu: $e', // Kept Turkish
-            isUser: false, // Renamed isUser
+            text: 'Sunucuya bağlanılamadı veya bir hata oluştu: $e',
+            isUser: false,
             model: _selectedModel,
           ),
         );
       });
       await HistoryManager.addMessage(
         Message(
-          // Renamed Mesaj
-          text:
-              'Sunucuya bağlanılamadı veya bir hata oluştu: $e', // Kept Turkish
-          isUser: false, // Renamed isUser
+          text: 'Sunucuya bağlanılamadı veya bir hata oluştu: $e',
+          isUser: false,
           model: _selectedModel,
         ),
         _currentSession!.id,
@@ -406,68 +394,64 @@ class _HomePageState extends State<HomePage> {
   }
 
   void pickImageFromCamera() async {
-    // Renamed kameraIleCek
-    final XFile? photo = await _picker.pickImage(
-      source: ImageSource.camera,
-    ); // Renamed foto
+    final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
     if (photo != null) {
       setState(() {
         _selectedFilePath = photo.path;
         _selectedFileName = photo.name;
         _selectedFileType = 'image';
         if (kIsWeb) {
-          // For web, get bytes directly from XFile and use for preview
           photo.readAsBytes().then((bytes) {
             setState(() {
               _selectedFileBytes = bytes;
             });
           });
         }
+        _isCloseButtonVisible =
+            false; // Initially hide button for new selection
       });
     }
   }
 
   void pickImageFromGallery() async {
-    // Renamed galeridenSec
-    final XFile? photo = await _picker.pickImage(
-      source: ImageSource.gallery,
-    ); // Renamed foto
+    final XFile? photo = await _picker.pickImage(source: ImageSource.gallery);
     if (photo != null) {
       setState(() {
         _selectedFilePath = photo.path;
         _selectedFileName = photo.name;
         _selectedFileType = 'image';
         if (kIsWeb) {
-          // For web, get bytes directly from XFile and use for preview
           photo.readAsBytes().then((bytes) {
             setState(() {
               _selectedFileBytes = bytes;
             });
           });
         }
+        _isCloseButtonVisible =
+            false; // Initially hide button for new selection
       });
     }
   }
 
   void pickFile() async {
-    // Renamed dosyaSec
     FilePickerResult? result = await FilePicker.platform.pickFiles();
     if (result != null && result.files.single.path != null) {
-      String fileName = result.files.single.name; // Renamed dosyaAdi
-      String filePath = result.files.single.path!; // Renamed dosyaYolu
-      Uint8List? fileBytes = result.files.single.bytes; // For web, bytes
+      String fileName = result.files.single.name;
+      String filePath = result.files.single.path!;
+      Uint8List? fileBytes = result.files.single.bytes;
 
       setState(() {
         _selectedFilePath = filePath;
         _selectedFileName = fileName;
         _selectedFileType = 'file';
-        _selectedFileBytes = fileBytes; // Save bytes for web
+        _selectedFileBytes = fileBytes;
+        _isCloseButtonVisible =
+            false; // Initially hide button for new selection
       });
     }
   }
 
   void _showFileSelectionDialog() {
-    // Renamed _dosyaSecimDialog
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.grey,
@@ -484,19 +468,16 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildActionColumn(Icons.image, 'Galeri', () {
-                    // Kept Turkish
                     Navigator.pop(context);
-                    pickImageFromGallery(); // Renamed galeridenSec
+                    pickImageFromGallery();
                   }),
                   _buildActionColumn(Icons.camera_alt, 'Kamera', () {
-                    // Kept Turkish
                     Navigator.pop(context);
-                    pickImageFromCamera(); // Renamed kameraIleCek
+                    pickImageFromCamera();
                   }),
                   _buildActionColumn(Icons.insert_drive_file, 'Dosya', () {
-                    // Kept Turkish
                     Navigator.pop(context);
-                    pickFile(); // Renamed dosyaSec
+                    pickFile();
                   }),
                 ],
               ),
@@ -539,31 +520,149 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _suggestionChip(String text) {
-    // Renamed _chip, yazi
     return ActionChip(
-      label: Text(text), // Renamed yazi
+      label: Text(text),
       backgroundColor: messageColor().withOpacity(0.7),
       labelStyle: const TextStyle(
         color: Colors.white,
-        fontSize: 14, // Set font size
-        height:
-            0.9, // Try this value (e.g., 0.8, 0.9, 1.0) to vertically center the text
-        leadingDistribution: TextLeadingDistribution
-            .even, // Distribute line spacing evenly top and bottom
+        fontSize: 14,
+        height: 0.9,
+        leadingDistribution: TextLeadingDistribution.even,
       ),
       onPressed: () => sendMessageAndGetResponse(text),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12.0,
-        vertical: 8.0,
-      ), // Adjusted ActionChip's general padding a bit
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
     );
   }
 
-  // UPDATED: Image generation method - Now directly calls sendMessageAndGetResponse
-  void _generateImageFromPrompt(String prompt) async {
-    // We send the image generation request directly to the sendMessageAndGetResponse method.
-    // The backend should detect this prompt and return an image.
-    sendMessageAndGetResponse('Görsel oluştur: "$prompt"'); // Kept Turkish
+  // Helper widget to display the file preview
+  Widget _buildFilePreviewWidget() {
+    if (_selectedFilePath == null) {
+      return const SizedBox.shrink(); // Return empty widget if no file selected
+    }
+
+    Widget previewContent;
+    double previewWidth;
+    double previewHeight;
+
+    if (_selectedFileType == 'image') {
+      previewWidth = 80; // Desired image preview size
+      previewHeight = 80;
+      previewContent = ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: kIsWeb && _selectedFileBytes != null
+            ? Image.memory(
+                _selectedFileBytes!,
+                width: previewWidth,
+                height: previewHeight,
+                fit: BoxFit.cover,
+              )
+            : (kIsWeb
+                  ? Image.network(
+                      _selectedFilePath!,
+                      width: previewWidth,
+                      height: previewHeight,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.file(
+                      File(_selectedFilePath!),
+                      width: previewWidth,
+                      height: previewHeight,
+                      fit: BoxFit.cover,
+                    )),
+      );
+    } else {
+      // file type
+      previewWidth = 100; // Desired file preview size (wider for text)
+      previewHeight = 80;
+      previewContent = Container(
+        width: previewWidth,
+        height: previewHeight,
+        padding: const EdgeInsets.all(8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade700,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.insert_drive_file,
+              color: Colors.white70,
+              size: 32,
+            ),
+            const SizedBox(height: 4),
+            Flexible(
+              child: Text(
+                _selectedFileName ?? 'Seçili Dosya',
+                style: const TextStyle(color: Colors.white, fontSize: 10),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      // Make the entire preview clickable to toggle 'X' visibility
+      onTap: () {
+        setState(() {
+          _isCloseButtonVisible =
+              !_isCloseButtonVisible; // Toggle visibility of 'X'
+        });
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: 12.0,
+          top: 8.0,
+          bottom: 4.0,
+        ), // Padding within the input bar
+        child: Stack(
+          clipBehavior: Clip.none, // Allow X button to overflow
+          children: [
+            previewContent,
+            // Close Button for the preview (conditionally visible)
+            if (_isCloseButtonVisible) // Only show if _isCloseButtonVisible is true
+              Positioned(
+                top: -10, // Adjust to position outside the box
+                right: -10, // Adjust to position outside the box
+                child: GestureDetector(
+                  // Ensure this GestureDetector captures taps
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    setState(() {
+                      _selectedFilePath = null;
+                      _selectedFileName = null;
+                      _selectedFileType = null;
+                      _selectedFileBytes = null;
+                      _messageController
+                          .clear(); // Clear text field if user had typed something with file
+                      _isCloseButtonVisible =
+                          false; // Hide button after clearing
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      shape: BoxShape.circle,
+                    ),
+                    width: 24, // Slightly larger tap target
+                    height: 24, // Slightly larger tap target
+                    alignment: Alignment.center, // Center the icon
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 16, // Small size for the close icon
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -663,37 +762,19 @@ class _HomePageState extends State<HomePage> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.list, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ChatSessionsPage(), // Renamed SohbetOturumlariSayfasi
-                ),
-              ).then((_) {
-                _initializeChat();
-              });
-            },
-            tooltip: 'Sohbet Oturumları', // Kept Turkish
-          ),
-          /* COMMENTED OUT: Chat History button removed.
-          IconButton(
             icon: const Icon(Icons.history, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      ChatHistoryPage(deviceId: _deviceId), // Renamed SohbetGecmisiSayfasi
+                  builder: (context) => const ChatSessionsPage(),
                 ),
               ).then((_) {
                 _initializeChat();
               });
             },
-            tooltip: 'Bu Sohbetin Geçmişi', // Kept Turkish
+            tooltip: 'Sohbet Oturumları',
           ),
-          */
         ],
       ),
       body: _isLoading
@@ -732,7 +813,6 @@ class _HomePageState extends State<HomePage> {
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8.0),
                                       child: Image.memory(
-                                        // Fix: .split(',').last removed as prefix is not expected from backend.
                                         base64Decode(message.base64Image!),
                                         width: 200,
                                         height: 200,
@@ -742,7 +822,7 @@ class _HomePageState extends State<HomePage> {
                                             'Failed to load Base64 image: $error',
                                           );
                                           return const Text(
-                                            'Görsel yüklenemedi (Base64).', // Kept Turkish
+                                            'Görsel yüklenemedi (Base64).',
                                             style: TextStyle(
                                               color: Colors.white,
                                             ),
@@ -752,7 +832,6 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                 // Show external URL if available (current code)
-                                // Note: This part might not be used currently as your backend returns base64.
                                 if (message.imageUrl != null)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8.0),
@@ -763,17 +842,18 @@ class _HomePageState extends State<HomePage> {
                                         width: 200,
                                         height: 200,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          debugPrint(
-                                            'Failed to load URL image: $error',
-                                          );
-                                          return const Text(
-                                            'Görsel yüklenemedi (URL).', // Kept Turkish
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                            ),
-                                          );
-                                        },
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              debugPrint(
+                                                'Failed to load URL image: $error',
+                                              );
+                                              return const Text(
+                                                'Görsel yüklenemedi (URL).',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              );
+                                            },
                                       ),
                                     ),
                                   ),
@@ -788,9 +868,8 @@ class _HomePageState extends State<HomePage> {
                                           kIsWeb &&
                                               message.filePath!.startsWith(
                                                 'blob:',
-                                              ) // If web and it's a blob URL, try MemoryImage
-                                          ? (_selectedFileBytes !=
-                                                    null // If bytes are still in memory
+                                              )
+                                          ? (_selectedFileBytes != null
                                                 ? Image.memory(
                                                     _selectedFileBytes!,
                                                     width: 200,
@@ -798,14 +877,12 @@ class _HomePageState extends State<HomePage> {
                                                     fit: BoxFit.cover,
                                                   )
                                                 : Image.network(
-                                                    // Otherwise, try NetworkImage (for blob URLs)
                                                     message.filePath!,
                                                     width: 200,
                                                     height: 200,
                                                     fit: BoxFit.cover,
                                                   ))
                                           : Image.file(
-                                              // For other platforms (and web if not blob), use Image.file (might need adjustment for web to NetworkImage if _selectedFileBytes is not retained in Mesaj)
                                               File(message.filePath!),
                                               width: 200,
                                               height: 200,
@@ -816,7 +893,7 @@ class _HomePageState extends State<HomePage> {
                                                       'Failed to load local image (Mobile/Desktop): $error',
                                                     );
                                                     return const Text(
-                                                      'Görsel yüklenemedi.', // Kept Turkish
+                                                      'Görsel yüklenemedi.',
                                                       style: TextStyle(
                                                         color: Colors.white,
                                                       ),
@@ -841,13 +918,11 @@ class _HomePageState extends State<HomePage> {
                                         const SizedBox(width: 8),
                                         Flexible(
                                           child: Text(
-                                            message.text.contains(
-                                                      '[Dosya:',
-                                                    ) && // Kept Turkish
+                                            message.text.contains('[Dosya:') &&
                                                     message.text.contains(']')
                                                 ? message.text.substring(
                                                     message.text.indexOf(
-                                                          '[Dosya:', // Kept Turkish
+                                                          '[Dosya:',
                                                         ) +
                                                         8,
                                                     message.text.indexOf(']'),
@@ -885,216 +960,83 @@ class _HomePageState extends State<HomePage> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            _suggestionChip(
-                              "Bana çalışma ipuçları ver",
-                            ), // Kept Turkish
+                            _suggestionChip("Bana çalışma ipuçları ver"),
                             const SizedBox(width: 8),
-                            _suggestionChip("Bana tavsiye ver"), // Kept Turkish
+                            _suggestionChip("Bana tavsiye ver"),
                             const SizedBox(width: 8),
-                            _suggestionChip("Bir şey öner"), // Kept Turkish
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Preview area for selected file (above message input box)
-                  if (_selectedFilePath != null)
-                    Align(
-                      // Aligned to the left
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(
-                          left: 16,
-                          top: 4,
-                          bottom: 4,
-                        ), // Left padding only
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GestureDetector(
-                              // Make preview area clickable
-                              onTap: () {
-                                setState(() {
-                                  _showCloseButton =
-                                      !_showCloseButton; // Toggle X button visibility
-                                });
-                              },
-                              child: Stack(
-                                clipBehavior:
-                                    Clip.none, // Allows button to overflow
-                                children: [
-                                  // Preview content (image or file icon)
-                                  if (_selectedFileType == 'image')
-                                    Container(
-                                      width: 80, // Size increased
-                                      height: 80, // Size increased
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        image: DecorationImage(
-                                          image:
-                                              kIsWeb &&
-                                                  _selectedFileBytes !=
-                                                      null // For web and if bytes are available, use MemoryImage
-                                              ? MemoryImage(_selectedFileBytes!)
-                                              : (kIsWeb // If web but no bytes, or NetworkImage needed for URL
-                                                    ? NetworkImage(
-                                                        _selectedFilePath!,
-                                                      )
-                                                    : FileImage(
-                                                        File(
-                                                          _selectedFilePath!,
-                                                        ),
-                                                      )), // For other platforms, use FileImage
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    )
-                                  else // _selectedFileType == 'file'
-                                    // New layout for file name and icon
-                                    Container(
-                                      width: 120, // Wider area
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade700,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      padding: const EdgeInsets.all(8),
-                                      alignment: Alignment.center,
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.insert_drive_file,
-                                            color: Colors.white70,
-                                            size: 32,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Flexible(
-                                            child: Text(
-                                              _selectedFileName ??
-                                                  'Seçili Dosya', // Kept Turkish
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-
-                                  // Close button (visible only if _showCloseButton is true)
-                                  if (_showCloseButton)
-                                    Positioned(
-                                      top: 5, // Positioned inside preview
-                                      right: 5, // Positioned inside preview
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(
-                                            0.6,
-                                          ), // Transparent black circle background
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: IconButton(
-                                          icon: const Icon(
-                                            Icons.close,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ), // Smaller icon
-                                          onPressed: () {
-                                            setState(() {
-                                              _selectedFilePath = null;
-                                              _selectedFileName = null;
-                                              _selectedFileType = null;
-                                              _selectedFileBytes =
-                                                  null; // Clear selected bytes too
-                                              _showCloseButton =
-                                                  false; // Hide X button after clearing
-                                            });
-                                          },
-                                          visualDensity: VisualDensity
-                                              .compact, // Makes button more compact
-                                          padding: EdgeInsets
-                                              .zero, // Removes extra padding
-                                          constraints: const BoxConstraints(
-                                            minWidth: 28,
-                                            minHeight: 28,
-                                          ), // Size constraints
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
+                            _suggestionChip("Bir şey öner"),
                           ],
                         ),
                       ),
                     ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _messageController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              hintText: "Mesaj yaz...", // Kept Turkish
-                              hintStyle: TextStyle(
-                                color: messageColor().withOpacity(0.7),
-                              ),
-                              filled: true,
-                              fillColor: messageColor().withOpacity(0.15),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(30),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              suffixIcon: Row(
-                                // Row used to show icons side by side
-                                mainAxisSize: MainAxisSize
-                                    .min, // Shrink Row to its content
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.auto_awesome_outlined,
-                                      color: messageColor(),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: messageColor().withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      padding: const EdgeInsets.only(
+                        bottom: 4,
+                      ), // Added bottom padding to the container
+                      child: Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.end, // Align items to the bottom
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize:
+                                  MainAxisSize.min, // Wrap content height
+                              children: [
+                                // File preview area (conditionally visible)
+                                if (_selectedFilePath != null)
+                                  _buildFilePreviewWidget(), // Now it's clickable
+                                TextField(
+                                  controller: _messageController,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: InputDecoration(
+                                    hintText: (_selectedFilePath != null)
+                                        ? ""
+                                        : "Mesaj yaz...", // Hide hint when file is selected
+                                    hintStyle: TextStyle(
+                                      color: messageColor().withOpacity(0.7),
                                     ),
-                                    onPressed: () => _generateImageFromPrompt(
-                                      _messageController.text,
+                                    filled:
+                                        false, // Background is on the parent Container
+                                    border: InputBorder
+                                        .none, // Remove default TextField border
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
                                     ),
-                                    tooltip: 'Görsel Oluştur', // Kept Turkish
                                   ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.attach_file,
-                                      color: messageColor(),
-                                    ),
-                                    onPressed: _showFileSelectionDialog,
-                                  ),
-                                ],
-                              ),
+                                  onSubmitted: sendMessageAndGetResponse,
+                                  minLines: 1,
+                                  maxLines:
+                                      5, // Allow multiple lines for text input
+                                ),
+                              ],
                             ),
-                            onSubmitted: sendMessageAndGetResponse,
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: Icon(Icons.send, color: messageColor()),
-                          onPressed: () => sendMessageAndGetResponse(
-                            _messageController.text,
+                          // Attach file button (always visible)
+                          IconButton(
+                            icon: Icon(
+                              Icons.attach_file,
+                              color: messageColor(),
+                            ),
+                            onPressed: _showFileSelectionDialog,
                           ),
-                        ),
-                      ],
+                          // Send message button (always visible)
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(Icons.send, color: messageColor()),
+                            onPressed: () => sendMessageAndGetResponse(
+                              _messageController.text,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
