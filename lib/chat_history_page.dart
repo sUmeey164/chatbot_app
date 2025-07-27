@@ -1,14 +1,12 @@
-// lib/chat_history_page.dart // Renamed file
+// lib/chat_history_page.dart
 import 'package:flutter/material.dart';
 import 'package:chatbot_app/history_manager.dart';
-import 'package:chatbot_app/message.dart'; // Renamed from mesaj.dart
-import 'package:chatbot_app/chat_session.dart'; // Renamed from SohbetOturumu.dart
-import 'dart:io'; // Required for File class
-import 'package:flutter/foundation.dart'
-    show kIsWeb; // Add this import for kIsWeb
+import 'package:chatbot_app/message.dart';
+import 'package:chatbot_app/chat_session.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ChatHistoryPage extends StatefulWidget {
-  // Renamed class
   final String deviceId;
   final String? sessionId;
 
@@ -16,12 +14,11 @@ class ChatHistoryPage extends StatefulWidget {
     : super(key: key);
 
   @override
-  _ChatHistoryPageState createState() => _ChatHistoryPageState(); // Renamed state class
+  _ChatHistoryPageState createState() => _ChatHistoryPageState();
 }
 
 class _ChatHistoryPageState extends State<ChatHistoryPage> {
-  // Renamed state class
-  ChatSession? _currentSession; // Renamed SohbetOturumu
+  ChatSession? _currentSession;
   bool _isLoading = true;
 
   @override
@@ -35,15 +32,11 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
       _isLoading = true;
     });
 
+    // We now primarily rely on sessionId to load a specific chat history.
+    // If sessionId is not provided, _currentSession will remain null,
+    // and the page will display "No messages found".
     if (widget.sessionId != null) {
-      _currentSession = await HistoryManager.getSessionById(
-        widget.sessionId!,
-      ); // Renamed getOturumById
-    } else {
-      _currentSession = await HistoryManager.getSessionByDeviceId(
-        // Renamed getOturumByDeviceId
-        widget.deviceId,
-      );
+      _currentSession = await HistoryManager.getSessionById(widget.sessionId!);
     }
 
     setState(() {
@@ -52,12 +45,10 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
   }
 
   Color getMessageColor(Message message) {
-    // Renamed getMesajRengi, Mesaj
     if (message.isUser) {
-      // Renamed kullanici to isUser
       return Colors.grey.shade800;
     }
-    final model = message.model ?? 'Chatbot'; // Renamed mesaj.model
+    final model = message.model ?? 'Chatbot';
     switch (model) {
       case 'Gemini':
         return Colors.blue;
@@ -78,11 +69,9 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
       appBar: AppBar(
         backgroundColor: Colors.grey[900],
         title: Text(
-          _currentSession?.title.isNotEmpty ==
-                  true // Renamed baslik to title
-              ? _currentSession!
-                    .title // Renamed baslik to title
-              : 'Chat History', // Translated string literal
+          _currentSession?.title.isNotEmpty == true
+              ? _currentSession!.title
+              : 'Chat History',
           style: const TextStyle(color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -91,29 +80,21 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           ? const Center(
               child: CircularProgressIndicator(color: Colors.deepPurple),
             )
-          : _currentSession == null ||
-                _currentSession!
-                    .messages
-                    .isEmpty // Renamed mesajlar to messages
+          : _currentSession == null || _currentSession!.messages.isEmpty
           ? const Center(
               child: Text(
-                'No messages found in this session.', // Translated string literal
+                'No messages found in this session.',
                 style: TextStyle(color: Colors.white70, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: _currentSession!
-                  .messages
-                  .length, // Renamed mesajlar to messages
+              itemCount: _currentSession!.messages.length,
               itemBuilder: (context, index) {
-                final message =
-                    _currentSession!.messages[index]; // Renamed mesaj, messages
+                final message = _currentSession!.messages[index];
                 return Align(
-                  alignment:
-                      message
-                          .isUser // Renamed kullanici to isUser
+                  alignment: message.isUser
                       ? Alignment.centerRight
                       : Alignment.centerLeft,
                   child: Container(
@@ -121,9 +102,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     padding: const EdgeInsets.all(12),
                     constraints: const BoxConstraints(maxWidth: 280),
                     decoration: BoxDecoration(
-                      color: getMessageColor(
-                        message,
-                      ), // Renamed getMesajRengi, mesaj
+                      color: getMessageColor(message),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -136,14 +115,13 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
                               child: Image.network(
-                                // Image.network used
                                 message.imageUrl!,
-                                width: 200, // Image size
-                                height: 200, // Image size
+                                width: 200,
+                                height: 200,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) =>
                                     const Text(
-                                      'Image failed to load.', // Translated string literal
+                                      'Image failed to load.',
                                       style: TextStyle(color: Colors.white),
                                     ),
                               ),
@@ -156,43 +134,34 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
-                              child:
-                                  kIsWeb // Check if running on Web
+                              child: kIsWeb
                                   ? Image.network(
-                                      // Use Image.network for Web
                                       message.filePath!,
                                       width: 200,
                                       height: 200,
                                       fit: BoxFit.cover,
                                       errorBuilder:
-                                          (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) => const Text(
-                                            'Image failed to load.', // Translated string literal
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                            ),
-                                          ),
+                                          (context, error, stackTrace) =>
+                                              const Text(
+                                                'Image failed to load.',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
                                     )
                                   : Image.file(
-                                      // Use Image.file for other platforms
                                       File(message.filePath!),
                                       width: 200,
                                       height: 200,
                                       fit: BoxFit.cover,
                                       errorBuilder:
-                                          (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) => const Text(
-                                            'Image failed to load.', // Translated string literal
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                            ),
-                                          ),
+                                          (context, error, stackTrace) =>
+                                              const Text(
+                                                'Image failed to load.',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
                                     ),
                             ),
                           ),
@@ -206,43 +175,30 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                               children: [
                                 const Icon(
                                   Icons.insert_drive_file,
-                                  color: Colors
-                                      .white70, // Changed from Colors.black54 for consistency with other parts in this file
+                                  color: Colors.white70,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
-                                    message.text.contains(
-                                              '[File:',
-                                            ) && // Renamed metin, string literal will change
-                                            message.text.contains(
-                                              ']',
-                                            ) // Renamed metin
+                                    message.text.contains('[File:') &&
+                                            message.text.contains(']')
                                         ? message.text.substring(
-                                            // Renamed metin
-                                            message.text.indexOf('[File:') +
-                                                8, // Renamed metin, string literal will change
-                                            message.text.indexOf(
-                                              ']',
-                                            ), // Renamed metin
+                                            message.text.indexOf('[File:') + 8,
+                                            message.text.indexOf(']'),
                                           )
-                                        : message.text, // Renamed metin
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                    ), // Changed from Colors.black for consistency with other parts in this file
+                                        : message.text,
+                                    style: const TextStyle(color: Colors.white),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        if (message.text.isNotEmpty) // Renamed metin
+                        if (message.text.isNotEmpty)
                           Text(
-                            message.text, // Renamed metin
-                            style: const TextStyle(
-                              color: Colors.white,
-                            ), // Changed from Colors.black for consistency with other parts in this file
+                            message.text,
+                            style: const TextStyle(color: Colors.white),
                           ),
                       ],
                     ),

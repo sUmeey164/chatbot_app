@@ -9,12 +9,10 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
 
-// Your custom classes should be imported using package:your_app_name/path_to_file.dart
 import 'api_service.dart';
 import 'package:chatbot_app/title_generator.dart';
 import 'package:chatbot_app/history_manager.dart';
 import 'package:chatbot_app/message.dart';
-import 'package:chatbot_app/chat_history_page.dart'; // Keeping this import though commented out in original
 import 'package:chatbot_app/chat_session.dart';
 import 'package:chatbot_app/chat_response.dart';
 
@@ -39,7 +37,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Message> _messages = [];
   final TextEditingController _messageController = TextEditingController();
-  String _selectedModel = 'Chatbot';
+  String _selectedModel = 'Chatbot'; // Default model
   bool _chatStarted = false;
 
   String? _selectedFilePath;
@@ -85,7 +83,11 @@ class _HomePageState extends State<HomePage> {
 
     _username = widget.userName ?? 'user_${_deviceId.substring(0, 8)}';
 
-    _currentSession = await HistoryManager.getSessionByDeviceId(_deviceId);
+    // Try to load the session for the current device and default model
+    _currentSession = await HistoryManager.getSessionByDeviceIdAndModel(
+      _deviceId,
+      _selectedModel,
+    );
 
     if (_currentSession == null) {
       _currentSession = ChatSession(
@@ -150,25 +152,44 @@ class _HomePageState extends State<HomePage> {
   }
 
   void changeModel(String newModel) async {
-    if (_currentSession != null && _currentSession!.messages.isNotEmpty) {
+    // Save the current session before changing the model, only if it's not null
+    if (_currentSession != null) {
+      // Ensure the model is set before saving
       _currentSession!.model = _selectedModel;
       await HistoryManager.saveSession(_currentSession!);
     }
 
-    _currentSession = ChatSession(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: '',
-      messages: [],
-      deviceId: _deviceId,
-      model: newModel,
+    // Try to load an existing session for the new model
+    final existingSession = await HistoryManager.getSessionByDeviceIdAndModel(
+      _deviceId,
+      newModel,
     );
-    await HistoryManager.saveSession(_currentSession!);
 
     setState(() {
       _selectedModel = newModel;
       _messages.clear();
       _chatStarted = false;
     });
+
+    if (existingSession != null) {
+      _currentSession = existingSession;
+      setState(() {
+        _messages.addAll(_currentSession!.messages);
+        if (_currentSession!.messages.isNotEmpty) {
+          _chatStarted = true;
+        }
+      });
+    } else {
+      // Create a new session if no existing session is found for the new model
+      _currentSession = ChatSession(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: '',
+        messages: [],
+        deviceId: _deviceId,
+        model: newModel,
+      );
+      await HistoryManager.saveSession(_currentSession!);
+    }
   }
 
   Color messageColor() {
@@ -767,10 +788,13 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ChatSessionsPage(),
+                  builder: (context) => ChatSessionsPage(
+                    selectedModel:
+                        _selectedModel, // Pass the currently selected model
+                  ),
                 ),
               ).then((_) {
-                _initializeChat();
+                _initializeChat(); // Reload sessions on return
               });
             },
             tooltip: 'Sohbet Oturumları',
