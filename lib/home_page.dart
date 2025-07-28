@@ -8,13 +8,14 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:uuid/uuid.dart'; // uuid paketini import edin
 
 import 'api_service.dart';
 import 'package:chatbot_app/title_generator.dart';
 import 'package:chatbot_app/history_manager.dart';
 import 'package:chatbot_app/message.dart';
 import 'package:chatbot_app/chat_session.dart';
-import 'package:chatbot_app/chat_response.dart';
+import 'package:chatbot_app/chat_response.dart'; // ChatResponse sınıfınızın doğru import edildiğinden emin olun
 
 final ImagePicker _picker = ImagePicker();
 
@@ -48,9 +49,15 @@ class _HomePageState extends State<HomePage> {
 
   bool _isChatInitialized = false;
 
+  // Oturum kimliğini burada tanımlıyoruz
+  late String _sessionId;
+
   @override
   void initState() {
     super.initState();
+    // sessionId'yi burada başlatıyoruz
+    _sessionId = const Uuid().v4(); // Her uygulama başlatıldığında yeni bir ID
+    debugPrint('Oturum Kimliği Başlatıldı: $_sessionId');
   }
 
   @override
@@ -104,6 +111,11 @@ class _HomePageState extends State<HomePage> {
       });
     }
 
+    // _sessionId'yi _currentSession'ın id'si ile güncelliyoruz,
+    // böylece API'ye gönderilen sessionId, kaydedilen oturumun ID'si olur.
+    // Eğer _currentSession yeni oluşturulmuşsa, onun ID'si kullanılacaktır.
+    _sessionId = _currentSession!.id;
+
     if (_currentSession!.messages.isNotEmpty) {
       setState(() {
         _messages.clear();
@@ -115,6 +127,21 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _isLoading = false;
     });
+  }
+
+  // Helper function to map display model name to backend modelProvider name
+  String _getBackendModelProvider(String displayModel) {
+    switch (displayModel) {
+      case 'ChatGPT':
+        return 'openai';
+      case 'Gemini':
+        return 'gemini';
+      case 'DeepSeek':
+        return 'deepseek';
+      case 'Chatbot': // Varsayılan olarak Chatbot'u gemini'ye yönlendiriyoruz
+      default:
+        return 'gemini';
+    }
   }
 
   Color getMessageColor(Message message) {
@@ -190,6 +217,8 @@ class _HomePageState extends State<HomePage> {
       );
       await HistoryManager.saveSession(_currentSession!);
     }
+    // Model değiştiğinde de sessionId'yi güncelliyoruz
+    _sessionId = _currentSession!.id;
   }
 
   Color messageColor() {
@@ -292,7 +321,7 @@ class _HomePageState extends State<HomePage> {
       text: isImageGenerationPrompt
           ? 'Görsel oluşturma isteği: "$imageGenerationPrompt"'
           : textToSend,
-      model: _selectedModel,
+      model: _selectedModel, // Bu hala görüntüleme için kullanılan model adı
       filePath: filePathToSend,
       fileType: fileTypeToSend,
     );
@@ -326,25 +355,35 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final ChatResponse apiResponse;
+      // Backend'e gönderilecek modelProvider değerini alıyoruz
+      final String backendModelProvider = _getBackendModelProvider(
+        _selectedModel,
+      );
+
       if (isImageGenerationPrompt) {
         apiResponse = await ApiService.sendMessage(
           imageGenerationPrompt,
-          model: _selectedModel,
+          modelProvider: backendModelProvider,
           deviceId: _deviceId,
           isImageGeneration: true,
+          sessionId: _currentSession!.id,
         );
       } else {
         apiResponse = await ApiService.sendMessage(
           textToSend,
-          model: _selectedModel,
+          modelProvider: backendModelProvider,
           deviceId: _deviceId,
           base64Image: base64ImageData,
+          sessionId: _currentSession!.id,
         );
       }
 
-      if (apiResponse.replyText != null && apiResponse.replyText!.isNotEmpty) {
+      // API yanıtını işleme kısmı
+      // 'reply' ve 'base64Image' alanlarını kontrol ediyoruz
+      if (apiResponse.reply != null && apiResponse.reply!.isNotEmpty) {
+        // 'replyText' yerine 'reply' kullanıldı
         final botMessage = Message(
-          text: apiResponse.replyText!,
+          text: apiResponse.reply!, // 'replyText' yerine 'reply' kullanıldı
           isUser: false,
           model: _selectedModel,
         );
@@ -361,7 +400,8 @@ class _HomePageState extends State<HomePage> {
         );
         final botImageMessage = Message(
           isUser: false,
-          text: 'İşte oluşturduğum görsel:',
+          text:
+              'İşte oluşturduğum görsel:', // Görselle birlikte gösterilecek metin
           model: _selectedModel,
           base64Image: apiResponse.base64Image!,
         );
@@ -373,7 +413,9 @@ class _HomePageState extends State<HomePage> {
         debugPrint('Base64 image data not found or empty in API response.');
       }
 
-      if (apiResponse.replyText == null && apiResponse.base64Image == null) {
+      // Eğer API'den ne metin ne de görsel yanıtı gelmezse
+      if (apiResponse.reply == null && apiResponse.base64Image == null) {
+        // 'replyText' yerine 'reply' kullanıldı
         setState(() {
           _messages.add(
             Message(

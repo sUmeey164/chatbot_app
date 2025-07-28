@@ -1,59 +1,75 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:chatbot_app/chat_response.dart'; // ChatResponse sınıfınızın yolu
+import 'package:flutter/foundation.dart'; // debugPrint için gerekli
 
 class ApiService {
+  // ÖNEMLİ: Bu URL'yi güncel ngrok adresinizle değiştirin.
+  // Postman'de doğru çalışan URL'nin baz kısmı olmalı.
   static const String _baseUrl =
-      'YOUR_API_BASE_URL'; // Burayı kendi API adresinizle değiştirin
+      'https://5d7d414e5d47.ngrok-free.app/api'; // Burayı kendi API adresinizle değiştirin!
 
   static Future<ChatResponse> sendMessage(
     String message, {
-    required String model,
+    required String modelProvider,
     required String deviceId,
+    required String sessionId,
     String? base64Image,
-    bool isImageGeneration = false, // Bu satırı ekleyin veya güncelleyin
+    bool isImageGeneration = false,
   }) async {
     final Map<String, dynamic> requestBody = {
       'message': message,
-      'model': model,
+      'modelProvider': modelProvider,
       'deviceId': deviceId,
+      'sessionId': sessionId,
     };
 
     if (base64Image != null && base64Image.isNotEmpty) {
       requestBody['image'] = base64Image;
     }
 
-    // isImageGeneration parametresine göre API'ye farklı bir şekilde istek gönderme mantığı
-    // Bu kısım, API'nizin görsel oluşturma isteklerini nasıl beklediğine bağlı olarak değişir.
-    // Örnek olarak, ayrı bir endpoint veya farklı bir JSON yapısı olabilir.
     if (isImageGeneration) {
-      // Görsel oluşturma için farklı bir endpoint veya özel bir yapı
-      // Örneğin:
-      // final response = await http.post(
-      //   Uri.parse('$_baseUrl/generate_image'), // Görsel oluşturma endpoint'i
-      //   headers: {'Content-Type': 'application/json'},
-      //   body: json.encode({'prompt': message, 'model': model, 'deviceId': deviceId}),
-      // );
-      // return ChatResponse.fromJson(json.decode(response.body));
-
-      // Şimdilik aynı endpoint'e 'isImageGeneration' bayrağı ile gönderelim,
-      // ancak API tarafında bu bayrağı işlediğinizden emin olun.
-      requestBody['is_image_generation'] = true; // API'ye gönderilecek bayrak
+      requestBody['is_image_generation'] = true;
     }
 
-    final response = await http.post(
-      Uri.parse('$_baseUrl/chat'), // Genellikle sohbet için kullanılan endpoint
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(requestBody),
-    );
+    final Map<String, String> headers = {
+      'Content-Type': 'application/json',
+      'x-device-id': deviceId,
+    };
 
-    if (response.statusCode == 200) {
-      final responseData = json.decode(utf8.decode(response.bodyBytes));
-      return ChatResponse.fromJson(responseData);
-    } else {
-      throw Exception(
-        'API isteği başarısız oldu: ${response.statusCode} ${response.body}',
+    debugPrint('--- API Request Details ---');
+    debugPrint('API Request URL: $_baseUrl/chat');
+    debugPrint('API Request Headers: $headers');
+    debugPrint('API Request Body: ${json.encode(requestBody)}');
+    debugPrint('API Request Session ID: $sessionId');
+    debugPrint('-------------------------');
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/chat'),
+        headers: headers,
+        body: json.encode(requestBody),
       );
+
+      // Yanıtın durum kodunu ve ham gövdesini her zaman yazdırın
+      debugPrint('--- API Response Details ---');
+      debugPrint('API Response Status Code: ${response.statusCode}');
+      debugPrint('API Response Raw Body: ${utf8.decode(response.bodyBytes)}');
+      debugPrint('--------------------------');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(utf8.decode(response.bodyBytes));
+        return ChatResponse.fromJson(responseData);
+      } else {
+        // Hata durumunda da detaylı bilgi
+        throw Exception(
+          'API isteği başarısız oldu: ${response.statusCode} ${utf8.decode(response.bodyBytes)}',
+        );
+      }
+    } catch (e) {
+      // Ağ hatası veya JSON ayrıştırma hatası gibi durumlar
+      debugPrint('API isteği gönderilirken genel hata oluştu: $e');
+      throw Exception('API isteği gönderilirken hata oluştu: $e');
     }
   }
 }

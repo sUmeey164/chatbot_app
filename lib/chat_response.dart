@@ -1,24 +1,16 @@
 // lib/chat_response.dart
 class ChatResponse {
-  final String? replyText; // Yanıt metni
-  final String? base64Image; // Oluşturulan görselin Base64 verisi
+  final String? reply; // Backend'den gelen 'reply' alanı
+  final String? base64Image; // Base64 kodlu görsel verisi
 
-  ChatResponse({this.replyText, this.base64Image});
+  ChatResponse({this.reply, this.base64Image});
 
   factory ChatResponse.fromJson(Map<String, dynamic> json) {
     return ChatResponse(
-      // API'den gelen JSON anahtarlarının doğru olduğundan emin olun
-      // Örneğin, API 'text' yerine 'response_text' veya 'answer' gönderiyor olabilir.
-      replyText:
-          json['reply_text']
-              as String?, // API yanıtındaki anahtara göre düzeltin
-      base64Image:
-          json['base64_image']
-              as String?, // API yanıtındaki anahtara göre düzeltin
+      // API yanıtında 'reply' alanı varsa al, yoksa null
+      reply: json['reply'] as String?,
+      // API yanıtında 'base64Image' alanı varsa al, yoksa null
+      base64Image: json['base64Image'] as String?,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {'reply_text': replyText, 'base64_image': base64Image};
   }
 }

@@ -190,10 +190,13 @@ class _ChatSessionsPageState extends State<ChatSessionsPage> {
                                 ),
                               ],
                             ),
-                            subtitle: Text(
+                            /*
+                            subtitle: 
+                            Text(
                               '${session.messages.length} messages',
                               style: const TextStyle(color: Colors.white70),
                             ),
+                            */
                             trailing: IconButton(
                               icon: Icon(
                                 Icons.delete,

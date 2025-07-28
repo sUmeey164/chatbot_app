@@ -18,6 +18,7 @@ dependencies:
   device_info_plus: ^11.5.0
   google_fonts: ^6.2.1
   intl: ^0.20.2
+  uuid: ^4.4.0 # Bu satırı ekleyin
 
 dev_dependencies:
   flutter_test:
